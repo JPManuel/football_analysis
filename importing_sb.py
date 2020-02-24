@@ -208,6 +208,81 @@ def clean_event_data(data):
     return match_events
 
 
+def get_player_info(data,player):
+    data = data
+    player = player
+    import pandas as pd
+    i = 0
+    
+    for i in range(0,len(data)):
+        if "type" in data[i]:
+            if 'Starting XI' in data[i]['type']['name']:
+                for j in data[i]['tactics']['lineup']:
+                    if player in j['player']['name']:
+                        start = 'Yes'
+                        pos = j['position']['name']
+                        num = j['jersey_number']
+                        min_start = 0
+                        sec_start = 0
+                    else:
+                        pass
+            
+            if 'Substitution' in data[i]['type']['name']:
+                if player == data[i]['player']['name']:
+                    sub_off = 'Yes'
+                    min_end = data[i]['minute']
+                    sec_end = data[i]['second']
+                else:
+                    pass
+                
+                if player == data[i]['substitution']['replacement']['name']:
+                    sub_on = 'Yes'
+                    min_start = data[i]['minute']
+                    sec_start = data[i]['second']
+                else:
+                    pass
+        else:
+            pass
+
+    if 'start' not in locals():
+        start = 'No'
+        pos = None
+        num = None
+
+    if 'sub_on' not in locals():
+        sub_on = 'No'
+    
+    if 'sub_off' not in locals():
+        sub_off = 'No'
+    
+    if 'min_end' not in locals():
+        min_end = data[-1]['minute']
+        sec_end = data[-1]['second']
+        
+    player_info = pd.Series(name=player)
+    player_info['position'] = pos
+    player_info['number'] = num
+    player_info['start'] = start
+    player_info['sub_off'] = sub_off
+    player_info['sub_on'] = sub_on
+    
+    # Added if incase player doesn't play
+    if 'min_start' in locals():
+        player_info['min_start'] = min_start
+        player_info['sec_start'] = sec_start
+        player_info['min_end'] = min_end
+        player_info['sec_end'] = sec_end
+        player_info['sec_played'] = ((min_end * 60) + sec_end) - ((min_start * 60) + sec_start)
+    else:
+        player_info['min_start'] = None
+        player_info['sec_start'] = None
+        player_info['min_end'] = None
+        player_info['sec_end'] = None
+        player_info['sec_played'] = None        
+        
+    return player_info
+
+
 def get_shots(data):
     data = data
     import pandas as pd
@@ -237,6 +312,7 @@ def get_shots(data):
     end_x =[]
     end_y = []
     end_z = []
+    drib = []
     ft = []
     ff = []
     opg = []
@@ -320,7 +396,12 @@ def get_shots(data):
         else:
             end_x.append(None)
             end_y.append(None)
-            
+        
+        if "follows_dribble" in shot_data[i]['shot']:
+            drib.append(shot_data[i]['shot']['follows_dribble'])
+        else:
+            drib.append(False)
+        
         if "first_time" in shot_data[i]['shot']:
             ft.append(shot_data[i]['shot']['first_time'])
         else:
@@ -383,6 +464,7 @@ def get_shots(data):
     shots['end_x'] = end_x
     shots['end_y'] = end_y
     shots['end_z'] = end_z
+    shots['follows_dribble'] = drib
     shots['first_time'] = ft
     shots['freeze_frame'] = ff
     shots['open_goal'] = opg
@@ -426,6 +508,7 @@ def get_pass(data):
     end_x =[]
     end_y = []
     crs = []
+    swi = []
     sa = []
     ga = []
     bp = []
@@ -512,6 +595,11 @@ def get_pass(data):
             crs.append(pass_data[i]['pass']['cross'])
         else:
             crs.append(False)
+            
+        if "switch" in pass_data[i]['pass']:
+            swi.append(pass_data[i]['pass']['switch'])
+        else:
+            swi.append(False)
         
         if "shot_assist" in pass_data[i]['pass']:
             sa.append(pass_data[i]['pass']['shot_assist'])
@@ -561,6 +649,7 @@ def get_pass(data):
     passes['end_x'] = end_x
     passes['end_y'] = end_y
     passes['cross'] = crs
+    passes['switch'] = swi
     passes['shot_assist'] = sa
     passes['goal_assist'] = ga
     passes['body_part'] = bp
@@ -569,6 +658,125 @@ def get_pass(data):
     passes['technique'] = tec
     
     return passes
+
+### Get Carries ###
+def get_carry(data):
+    data = data
+    import pandas as pd
+    
+    i = 0
+    carry_data = []
+    for i in range(0,len(data)):
+        if("carry" in data[i]):
+            carry_data.append(data[i])
+        else:
+            pass
+    
+    i = 0
+    ind = []
+    per = []
+    m = []
+    s = []
+    ty = []
+    ptm = []
+    pat = []
+    tm = []
+    pl = []
+    x = []
+    y = []
+    dur = []
+    psr = []
+    end_x = []
+    end_y = []
+    
+    for i in range(len(carry_data)):
+        if "index" in carry_data[i]:
+            ind.append(carry_data[i]['index'])
+        else:
+            ind.append(0)
+    
+        if "period" in carry_data[i]:
+            per.append(carry_data[i]['period'])
+        else:
+            per.append(None)
+        
+        if "minute" in carry_data[i]:
+            m.append(carry_data[i]['minute'])
+        else:
+            m.append(None)
+            
+        if "second" in carry_data[i]:
+            s.append(carry_data[i]['second'])
+        else:
+            s.append(None)
+            
+        if "type" in carry_data[i]:
+            ty.append(carry_data[i]['type']['name'])
+        else:
+            ty.append(None)
+            
+        if "possession_team" in carry_data[i]:
+            ptm.append(carry_data[i]['possession_team']['name'])
+        else:
+            ptm.append(None)
+            
+        if "play_pattern" in carry_data[i]:
+            pat.append(carry_data[i]['play_pattern']['name'])
+        else:
+            pat.append(None)
+            
+        if "team" in carry_data[i]:
+            tm.append(carry_data[i]['team']['name'])
+        else:
+            tm.append(None)
+            
+        if "player" in carry_data[i]:
+            pl.append(carry_data[i]['player']['name'])
+        else:
+            pl.append(None)
+            
+        if "location" in carry_data[i]:
+            x.append(carry_data[i]['location'][0])
+            y.append(carry_data[i]['location'][1])
+        else:
+            x.append(None)
+            y.append(None)
+            
+        if "duration" in carry_data[i]:
+            dur.append(carry_data[i]['duration'])
+        else:
+            dur.append(None)
+            
+        if "under_pressure" in carry_data[i]:
+            psr.append(carry_data[i]['under_pressure'])
+        else:
+            psr.append(None)
+            
+        if "end_location" in carry_data[i]['carry']:
+            end_x.append(carry_data[i]['carry']['end_location'][0])
+            end_y.append(carry_data[i]['carry']['end_location'][1])
+        else:
+            end_x.append(None)
+            end_y.append(None)
+            
+    carries = pd.DataFrame()
+    carries['index'] = ind
+    carries['period'] = per
+    carries['minute'] = m
+    carries['second'] = s
+    carries['type'] = ty
+    carries['pos_team'] = ptm
+    carries['play_pattern'] = pat
+    carries['team'] = tm
+    carries['player'] = pl
+    carries['x'] = x
+    carries['y'] = y
+    carries['duration'] = dur
+    carries['under_pressure'] = psr
+    carries['end_x'] = end_x
+    carries['end_y'] = end_y
+        
+    return carries
 
 
 ### Pitch drawing function ###
@@ -832,6 +1040,14 @@ def shot_map_team(data,team,pitch_col,line_col,xg_display,colourmap):
     f_g_xG = tshots_f_g.sb_xg.values
     pfk_g_xG = tshots_pfk_g.sb_xg.values
     
+        
+    # Plot legend
+    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.6)
+    ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.6)
+    ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.6)
+    ax.legend(bbox_to_anchor=(0.99, 0.01),ncol=3,fontsize=14,loc=4,shadow=True)
+    
+    zo=10
     if xg_display.lower().startswith("s"):
         
         size_f = xg_size(f_xG)
@@ -841,22 +1057,16 @@ def shot_map_team(data,team,pitch_col,line_col,xg_display,colourmap):
         size_f_g = xg_size(f_g_xG)
         size_h_g = xg_size(h_g_xG)
         size_pfk_g = xg_size(pfk_g_xG)
-    
-        # Plot legend
-        ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.6)
-        ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.6)
-        ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.6)
-        ax.legend(bbox_to_anchor=(0.99, 0.01),ncol=3,fontsize=14,loc=4,shadow=True)
 
         # Plotting shots
-        ax.scatter(yf, xf, s=size_f*1000, marker='H', c="red", edgecolors="black",zorder=100,alpha=0.9)
-        ax.scatter(yh, xh, s=size_h*1000, marker='o', c="red", edgecolors="black",zorder=100,alpha=0.9)
-        ax.scatter(ypfk,xpfk,s=size_pfk*1000,marker='s',c='red',edgecolors='black',zorder=100,alpha=0.9)
+        ax.scatter(yf, xf, s=size_f*1000, marker='H', c="red", edgecolors="black",zorder=zo+1,alpha=0.9)
+        ax.scatter(yh, xh, s=size_h*1000, marker='o', c="red", edgecolors="black",zorder=zo+1,alpha=0.9)
+        ax.scatter(ypfk,xpfk,s=size_pfk*1000,marker='s',c='red',edgecolors='black',zorder=zo+1,alpha=0.9)
         
         # Plotting goals
-        ax.scatter(yf_g, xf_g, s=size_f_g*1000, marker='H', c="r", edgecolors="black",zorder=101,alpha=0.9,lw=5)
-        ax.scatter(yh_g, xh_g, s=size_h_g*1000, marker='o', c="r", edgecolors="black",zorder=101,alpha=0.9)
-        ax.scatter(ypfk_g,xpfk_g,s=size_pfk_g*1000,marker='s',c='r',edgecolors='black',zorder=101,alpha=0.9)
+        ax.scatter(yf_g, xf_g, s=size_f_g*1000, marker='H', c="r", edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(yh_g, xh_g, s=size_h_g*1000, marker='o', c="r", edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(ypfk_g,xpfk_g,s=size_pfk_g*1000,marker='s',c='r',edgecolors='black',zorder=zo+2,alpha=0.9,lw=3)
 
         #plt.title(r"$\bf{" + str(team) + "}$" + "\n vs " + str(opposition) + "\n Total " + str(round(sum(tshots.sb_xg),2)) + "xG" ,fontsize=18)
         ax.text(0.0, 1.03, team, ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
@@ -873,22 +1083,22 @@ def shot_map_team(data,team,pitch_col,line_col,xg_display,colourmap):
         ## Colour representing xG
         norm_range = matplotlib.colors.Normalize(vmin=0, vmax=0.80)
         
-        zo=10
-        i = 0
         cmap, cmap_nonlin_f, levels, xfrm_levels = xg_colourbar(f_xG,colourmap)
         cmap_nonlin_h = xg_colourbar(h_xG,colourmap)[1]
         cmap_nonlin_pfk = xg_colourbar(pfk_xG,colourmap)[1]
-        
-        # Plot legend
-        ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.6)
-        ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.6)
-        ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.6)
-        ax.legend(bbox_to_anchor=(0.99, 0.01),ncol=3,fontsize=14,loc=4,shadow=True)
+        cmap_nonlin_f_g = xg_colourbar(f_g_xG,colourmap)[1]
+        cmap_nonlin_h_g = xg_colourbar(h_g_xG,colourmap)[1]
+        cmap_nonlin_pfk_g = xg_colourbar(pfk_g_xG,colourmap)[1]
         
         # Plot shots
         ax.scatter(yf,xf,zorder=zo+1,s=200,marker='H',color=cmap_nonlin_f,edgecolors='black',lw=1,alpha=0.8)
         ax.scatter(yh,xh,zorder=zo+1,s=200,marker='o',color=cmap_nonlin_h,edgecolors='black',lw=1,alpha=0.8)
         ax.scatter(ypfk,xpfk,zorder=zo+1,s=200,marker='s',color=cmap_nonlin_pfk,edgecolors='black',lw=1,alpha=0.8)
+        
+        # Plotting goals
+        ax.scatter(yf_g, xf_g, s=200, marker='H', c=cmap_nonlin_f_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(yh_g, xh_g, s=200, marker='o', c=cmap_nonlin_h_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(ypfk_g,xpfk_g,s=200,marker='s',c=cmap_nonlin_pfk_g,edgecolors='black',zorder=zo+2,alpha=0.9,lw=3)
 
         #cax, _ = matplotlib.colorbar.make_axes(ax,orientation='horizontal')
         #cax = inset_axes(ax, width="60%", height="5%", bbox_to_anchor=(150,-50,500,500)) # Allows one to place cb in current axis
@@ -936,303 +1146,115 @@ def shot_map_player(data,player,pitch_col,line_col,xg_display,colourmap):
     # Shot data
     pshots = shots[shots['player'] == player]
     pshots_h = pshots[(pshots['body_part'] == 'Head')]
-    pshots_f = pshots[(pshots['body_part'] == 'Left Foot')|(pshots['body_part'] == 'Right Foot')]
+    pshots_f = pshots[((pshots['body_part'] == 'Left Foot')|(pshots['body_part'] == 'Right Foot'))&(pshots['shot_type'] != 'Penalty')&(pshots['shot_type'] != 'Free Kick')]
+    pshots_pfk = pshots[(pshots['shot_type'] == 'Penalty')|(pshots['shot_type'] == 'Free Kick')]
+    pshots_p = pshots[(pshots['shot_type'] == 'Penalty')]
+    
     pshots_h_g = pshots_h[pshots_h['outcome'] == 'Goal']
     pshots_f_g = pshots_f[pshots_f['outcome'] == 'Goal']
+    pshots_pfk_g = pshots_pfk[pshots_pfk['outcome'] == 'Goal']
     
     xh = pshots_h['x'].values
     yh = pshots_h['y'].values
-    
     xf = pshots_f['x'].values
     yf = pshots_f['y'].values
+    xpfk = pshots_pfk['x'].values
+    ypfk = pshots_pfk['y'].values
     
     xh_g = pshots_h_g['x'].values
     yh_g = pshots_h_g['y'].values
-    
     xf_g = pshots_f_g['x'].values
     yf_g = pshots_f_g['y'].values
+    xpfk_g = pshots_pfk_g['x'].values
+    ypfk_g = pshots_pfk_g['y'].values
     
     h_xG = pshots_h.sb_xg.values
     f_xG = pshots_f.sb_xg.values
+    pfk_xG = pshots_pfk.sb_xg.values
     h_g_xG = pshots_h_g.sb_xg.values
     f_g_xG = pshots_f_g.sb_xg.values
+    pfk_g_xG = pshots_pfk_g.sb_xg.values
     
+    # Plot legend
+    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.6)
+    ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.6)
+    ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.6)
+    ax.legend(bbox_to_anchor=(0.99, 0.01),ncol=3,fontsize=14,loc=4,shadow=True)
+    
+    zo=10
     if xg_display.lower().startswith("s"):
-        ## Size representing xG
-        # Plot legend
-        ax.scatter(-100,-100,marker='o',c='grey',edgecolors='black',s=200,label='Head',alpha=0.6)
-        ax.scatter(-100,-100,marker='s',c='grey',edgecolors='black',s=200,label='Foot',alpha=0.6)
-        ax.legend(bbox_to_anchor=(0.70, 0.001),ncol=3,fontsize=14)
         
+        size_f = xg_size(f_xG)
+        size_h = xg_size(h_xG)
+        size_pfk = xg_size(pfk_xG)
+        
+        size_f_g = xg_size(f_g_xG)
+        size_h_g = xg_size(h_g_xG)
+        size_pfk_g = xg_size(pfk_g_xG)
+
         # Plotting shots
-        plt.scatter(yh, xh, s=h_xG*1000, marker='o', c="grey", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yf, xf, s=f_xG*1000, marker='s', c="grey", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yh_g, xh_g, s=h_g_xG*1000, marker='o', c="pink", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yf_g, xf_g, s=f_g_xG*1000, marker='s', c="pink", edgecolors="black",alpha=0.6,zorder=100)
+        ax.scatter(yf, xf, s=size_f*1000, marker='H', c="red", edgecolors="black",zorder=zo+1,alpha=0.9)
+        ax.scatter(yh, xh, s=size_h*1000, marker='o', c="red", edgecolors="black",zorder=zo+1,alpha=0.9)
+        ax.scatter(ypfk,xpfk,s=size_pfk*1000,marker='s',c='red',edgecolors='black',zorder=zo+1,alpha=0.9)
         
-        plt.title(str(player) + "\n" + str((len(pshots_h_g) + len(pshots_f_g))) + " Goals with Total "+str(round(sum(pshots.sb_xg),2))+"xG in " + str(len(data)) + " games",fontsize=18)
-        #plt.title(r'$\bf{{{0}}}$'.format(str(team)))
+        # Plotting goals
+        ax.scatter(yf_g, xf_g, s=size_f_g*1000, marker='H', c="r", edgecolors="black",zorder=zo+2,alpha=0.9,lw=5)
+        ax.scatter(yh_g, xh_g, s=size_h_g*1000, marker='o', c="r", edgecolors="black",zorder=zo+2,alpha=0.9)
+        ax.scatter(ypfk_g,xpfk_g,s=size_pfk_g*1000,marker='s',c='r',edgecolors='black',zorder=zo+2,alpha=0.9)
+
+        ax.text(0.0, 1.0, player, ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+        if len(pshots_p) > 0:
+            ax.text(1.0, 1.03, str(round(sum(pshots.sb_xg)-sum(pshots_p.sb_xg),2)) + ' xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+            ax.text(1.0, 1.0, '(+' + str(len(pshots_p)) + ' Pen)', ha='right', va='bottom', transform=ax.transAxes, fontsize=13)
+        else:
+            ax.text(1.0, 1.0, str(round(sum(pshots.sb_xg),2)) + 'xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi') 
+        
         plt.show()
     
     else:
         ## Colour representing xG
         norm_range = matplotlib.colors.Normalize(vmin=0, vmax=0.80)
         
-        zo=10
-        i = 0
-        cmap, cmap_nonlin, levels, xfrm_levels = xg_colourbar(f_xG,colourmap)
-        ax.scatter(yf, xf,zorder=zo+1,s=200,marker='s',color=cmap_nonlin,edgecolors='black',lw=1,alpha=0.8)
-
-        cax, _ = matplotlib.colorbar.make_axes(ax)
-        cbar = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm_range)
-        cbar.set_ticks(xfrm_levels)
-        cbar.set_ticklabels(["%.2f" % lev for lev in levels])
-
-        plt.show()
-    
-
-    
-def shot_map_player_old(data,player,pitch_col,line_col,xg_display):
-    import pandas as pd
-    import matplotlib.pyplot as plt
-    import matplotlib.patheffects as pe
-    import matplotlib
-    
-    data = data
-    player = player
-    pitch_col = pitch_col
-    line_col = line_col
-    
-    #shots = pd.concat(data,ignore_index=True)
-    shots = get_shots(data)
-    shots.sort_values('sb_xg',ascending=True,inplace=True) #Sort into xG value ascending order
-    
-    #shots = data
-       
-    fig, ax = draw_pitch(pitch_col,line_col,'v','h')
+        cmap, cmap_nonlin_f, levels, xfrm_levels = xg_colourbar(f_xG,colourmap)
+        cmap_nonlin_h = xg_colourbar(h_xG,colourmap)[1]
+        cmap_nonlin_pfk = xg_colourbar(pfk_xG,colourmap)[1]
+        cmap_nonlin_f_g = xg_colourbar(f_g_xG,colourmap)[1]
+        cmap_nonlin_h_g = xg_colourbar(h_g_xG,colourmap)[1]
+        cmap_nonlin_pfk_g = xg_colourbar(pfk_g_xG,colourmap)[1]
         
-    # Shot data
-    pshots = shots[shots['player'] == player]
-    pshots_h = pshots[(pshots['body_part'] == 'Head')]
-    pshots_f = pshots[(pshots['body_part'] == 'Left Foot')|(pshots['body_part'] == 'Right Foot')]
-    pshots_h_g = pshots_h[pshots_h['outcome'] == 'Goal']
-    pshots_f_g = pshots_f[pshots_f['outcome'] == 'Goal']
-    
-    xh = pshots_h['x'].values
-    yh = pshots_h['y'].values
-    
-    xf = pshots_f['x'].values
-    yf = pshots_f['y'].values
-    
-    xh_g = pshots_h_g['x'].values
-    yh_g = pshots_h_g['y'].values
-    
-    xf_g = pshots_f_g['x'].values
-    yf_g = pshots_f_g['y'].values
-    
-    xh_xG = pshots_h.sb_xg.values
-    xf_xG = pshots_f.sb_xg.values
-    xh_g_xG = pshots_h_g.sb_xg.values
-    xf_g_xG = pshots_f_g.sb_xg.values
-    
-    if xg_display.lower().startswith("s"):
-        ## Size representing xG
-        # Plot legend
-        ax.scatter(-100,-100,marker='o',c='grey',edgecolors='black',s=200,label='Head',alpha=0.6)
-        ax.scatter(-100,-100,marker='s',c='grey',edgecolors='black',s=200,label='Foot',alpha=0.6)
-        ax.legend(bbox_to_anchor=(0.70, 0.001),ncol=3,fontsize=14)
-        
-        # Plotting shots
-        plt.scatter(yh, xh, s=xh_xG*1000, marker='o', c="grey", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yf, xf, s=xf_xG*1000, marker='s', c="grey", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yh_g, xh_g, s=xh_g_xG*1000, marker='o', c="pink", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yf_g, xf_g, s=xf_g_xG*1000, marker='s', c="pink", edgecolors="black",alpha=0.6,zorder=100)
-        
-        plt.title(str(player) + "\n" + str((len(pshots_h_g) + len(pshots_f_g))) + " Goals with Total "+str(round(sum(pshots.sb_xg),2))+"xG in " + str(len(data)) + " games",fontsize=18)
-        #plt.title(r'$\bf{{{0}}}$'.format(str(team)))
-        plt.show()
-    
-    else:
-        ## Colour representing xG
-        #cmap = matplotlib.cm.get_cmap('plasma')
-        cmap = matplotlib.cm.get_cmap('jet')
-        norm_range = matplotlib.colors.Normalize(vmin=0, vmax=0.80)
-        c_vals_h = [cmap(norm_range(value)) for value in xh_xG]
-        c_vals_f = [cmap(norm_range(value)) for value in xf_xG]
-        c_vals_f_g = [cmap(norm_range(value)) for value in xf_g_xG]
-        
-        zo=10
-        i = 0
-        for i in range(len(pshots_f)):
-            plt.scatter(yf[i], xf[i],zorder=i+zo+1,s=200,marker='s',color=c_vals_f[i],edgecolors='black',lw=1,alpha=0.3)
-            #plot = plt.scatter(yf[i], xf[i],zorder=0,color=c_vals_f[i])
-            plot = plt.scatter(yf[i], xf[i],zorder=0,s=0,c=xf_xG[i], vmin=0, vmax=0.8, cmap=cmap)
-        for i in range(len(pshots_f_g)):
-            plt.scatter(yf_g[i], xf_g[i],zorder=i+zo+500,s=200,marker='s',color=c_vals_f_g[i],edgecolors='black',lw=1)
+        # Plot shots
+        ax.scatter(yf,xf,zorder=zo+1,s=200,marker='H',color=cmap_nonlin_f,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(yh,xh,zorder=zo+1,s=200,marker='o',color=cmap_nonlin_h,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(ypfk,xpfk,zorder=zo+1,s=200,marker='s',color=cmap_nonlin_pfk,edgecolors='black',lw=1,alpha=0.8)
             
-#        cax, _ = matplotlib.colorbar.make_axes(ax)
-#        cbar = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm_range)
-        cbar = fig.colorbar(plot)
+        # Plotting goals
+        ax.scatter(yf_g, xf_g, s=200, marker='H', c=cmap_nonlin_f_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(yh_g, xh_g, s=200, marker='o', c=cmap_nonlin_h_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(ypfk_g,xpfk_g,s=200,marker='s',c=cmap_nonlin_pfk_g,edgecolors='black',zorder=zo+2,alpha=0.9,lw=3)
+
+        # Colourbar
+        cax = fig.add_axes([0.55, 0.23, 0.3, 0.04]) # Can just add_axes but then must place manually
+        cax.set_title('xG',fontsize=14)
+        cax.tick_params(labelsize=12)
+        cbar = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm_range, orientation="horizontal")
+        cbar.set_ticks([xfrm_levels[i] for i in [0,4,6,-1]])
+        cbar.set_ticklabels(["%.2f" % levels[i] for i in [0,4,6,-1]])
+        
+        ax.text(0.0, 1.0, player, ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+        if len(pshots_p) > 0:
+            ax.text(1.0, 1.03, str(round(sum(pshots.sb_xg)-sum(pshots_p.sb_xg),2)) + ' xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+            ax.text(1.0, 1.0, '(+' + str(len(pshots_p)) + ' Pen)', ha='right', va='bottom', transform=ax.transAxes, fontsize=13)
+        else:
+            ax.text(1.0, 1.0, str(round(sum(pshots.sb_xg),2)) + 'xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+
 
         plt.show()
-        
-    return pshots_f, pshots_f_g, xf, yf, xf_g, yf_g, xh_xG, xf_xG, xf_g_xG
     
-
-def shot_map_player_older(data,player,pitch_col,line_col,xg_display):
+    
+def shot_map(data,home_team,away_team,home_col,away_col,pitch_col,line_col,xg_display,colourmap):
     import pandas as pd
     import matplotlib.pyplot as plt
-    import matplotlib.patheffects as pe
     import matplotlib
-    
-    data = data
-    player = player
-    pitch_col = pitch_col
-    line_col = line_col
-    
-    shots = pd.concat(data,ignore_index=True)
-    shots.sort_values('sb_xg',ascending=True,inplace=True) #Sort into xG value ascending order
-    
-    #shots = data
-       
-    fig,ax = plt.subplots(figsize=(10.4,6.8))
-    plt.ylim(50,105)
-    plt.xlim(-1,69)
-    ax.axis('off')    
-    
-    ### Plotting pitch ###
-    ## TOP ##
-    # Sidelines
-    lx1 = [0,0,68,68,0]
-    ly1 = [0,104,104,0,0]
-    # Outer box
-    lx2 = [13.84,13.84,54.16,54.16]
-    ly2 = [104,87.5,87.5,104]
-    # Goal
-    lx3 = [30.34,30.34,37.66,37.66]
-    ly3 = [104,104.2,104.2,104]
-    # 6-yard box
-    lx4 = [24.84,24.84,43.16,43.16]
-    ly4 = [104,99.5,99.5,104]
-    #Half-way line
-    lx5 = [0,68]
-    ly5 = [52,52]
-    ### BOTTOM ###
-    # Outer box
-    lx6 = [13.84,13.84,54.16,54.16]
-    ly6 = [0,16.5,16.5,0]
-    # Goal
-    lx7 = [30.34,30.34,37.66,37.66]
-    ly7 = [0,-0.2,-0.2,0]
-    # 6-yard box
-    lx8 = [24.84,24.84,43.16,43.16]
-    ly8 = [0,4.5,4.5,0]
-    # Circles
-    circle1 = plt.Circle((34,93.5), 9.15, ls='solid', lw=1.5, color=line_col, fill=False, zorder=1, alpha=1)
-    circle2 = plt.Circle((34,10.5), 9.15, ls='solid', lw=1.5, color=line_col, fill=False, zorder=1, alpha=1)
-    circle3 = plt.Circle((34,52), 9.15, ls='solid', lw=1.5, color=line_col, fill=False, zorder=2, alpha=1)
-
-    plt.plot(lx1,ly1,color=line_col,zorder=5)
-    plt.plot(lx2,ly2,color=line_col,zorder=5)
-    plt.plot(lx3,ly3,color=line_col,zorder=5)
-    plt.plot(lx4,ly4,color=line_col,zorder=5)
-    plt.plot(lx5,ly5,color=line_col,zorder=5)
-    plt.plot(lx6,ly6,color=line_col,zorder=5)
-    plt.plot(lx7,ly7,color=line_col,zorder=5)
-    plt.plot(lx8,ly8,color=line_col,zorder=5)
-    
-    # Center and penalty spots
-    plt.scatter(34,93,color=line_col,zorder=5)
-    plt.scatter(34,11,color=line_col,zorder=5)
-    plt.scatter(34,52,color=line_col,zorder=5)
-    
-    ax.add_artist(circle1)
-    ax.add_artist(circle2)
-    ax.add_artist(circle3)
-    
-    ## Rectangles in boxes
-    rec1 = plt.Rectangle((20,87.5), 30,16.5,ls='-',color=pitch_col, zorder=1,alpha=1)
-    rec2 = plt.Rectangle((20,0), 30,16.5,ls='-',color=pitch_col, zorder=1,alpha=1)
-    ## Pitch rectangle
-    rec3 = plt.Rectangle((-1,-1), 70,106,color=pitch_col,zorder=0,alpha=1)
-    
-    ax.add_artist(rec1)
-    ax.add_artist(rec2)
-    ax.add_artist(rec3)
-        
-    # Shot data
-    pshots = shots[shots['player'] == player]
-    pshots_h = pshots[(pshots['body_part'] == 'Head')]
-    pshots_f = pshots[(pshots['body_part'] == 'Left Foot')|(pshots['body_part'] == 'Right Foot')]
-    pshots_h_g = pshots_h[pshots_h['outcome'] == 'Goal']
-    pshots_f_g = pshots_f[pshots_f['outcome'] == 'Goal']
-    
-    xh = (pshots_h['x'].values / 120) * 104
-    yh = (pshots_h['y'].values / 80) * 68
-    yh = 68 - yh # Since we are plotting half the pitch vertically, y coords become the new x
-    
-    xf = (pshots_f['x'].values / 120) * 104
-    yf = (pshots_f['y'].values / 80) * 68
-    yf = 68 - yf
-    
-    xh_g = (pshots_h_g['x'].values / 120) * 104
-    yh_g = (pshots_h_g['y'].values / 80) * 68
-    yh_g = 68 - yh_g # Since we are plotting half the pitch vertically, y coords become the new x
-    
-    xf_g = (pshots_f_g['x'].values / 120) * 104
-    yf_g = (pshots_f_g['y'].values / 80) * 68
-    yf_g = 68 - yf_g
-    
-    xh_xG = pshots_h.sb_xg.values
-    xf_xG = pshots_f.sb_xg.values
-    xh_g_xG = pshots_h_g.sb_xg.values
-    xf_g_xG = pshots_f_g.sb_xg.values
-    
-    if xg_display.lower().startswith("s"):
-        ## Size representing xG
-        # Plot legend
-        ax.scatter(-100,-100,marker='o',c='grey',edgecolors='black',s=200,label='Head',alpha=0.6)
-        ax.scatter(-100,-100,marker='s',c='grey',edgecolors='black',s=200,label='Foot',alpha=0.6)
-        ax.legend(bbox_to_anchor=(0.70, 0.001),ncol=3,fontsize=14)
-        
-        # Plotting shots
-        plt.scatter(yh, xh, s=xh_xG*1000, marker='o', c="grey", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yf, xf, s=xf_xG*1000, marker='s', c="grey", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yh_g, xh_g, s=xh_g_xG*1000, marker='o', c="pink", edgecolors="black",alpha=0.6,zorder=100)
-        plt.scatter(yf_g, xf_g, s=xf_g_xG*1000, marker='s', c="pink", edgecolors="black",alpha=0.6,zorder=100)
-        
-        plt.title(str(player) + "\n" + str((len(pshots_h_g) + len(pshots_f_g))) + " Goals with Total "+str(round(sum(pshots.sb_xg),2))+"xG in " + str(len(data)) + " games",fontsize=18)
-        #plt.title(r'$\bf{{{0}}}$'.format(str(team)))
-        plt.show()
-    
-    else:
-        ## Colour representing xG
-        cmap = matplotlib.cm.get_cmap('plasma')
-        norm_range = matplotlib.colors.Normalize(vmin=0, vmax=0.80)
-        c_vals_h = [cmap(norm_range(value)) for value in xh_xG]
-        c_vals_f = [cmap(norm_range(value)) for value in xf_xG]
-        c_vals_f_g = [cmap(norm_range(value)) for value in xf_g_xG]
-        
-        zo=10
-        i = 0
-        for i in range(len(pshots_f)):
-            plt.scatter(yf[i], xf[i],zorder=i+zo+1,s=200,marker='s',color=c_vals_f[i],edgecolors='black',lw=1,alpha=0.3)
-            #plot = plt.scatter(yf[i], xf[i],zorder=0,color=c_vals_f[i])
-            plot = plt.scatter(yf[i], xf[i],zorder=0,c=xf_xG[i], vmin=0, vmax=0.8, cmap=cmap)
-        for i in range(len(pshots_f_g)):
-            plt.scatter(yf_g[i], xf_g[i],zorder=i+zo+500,s=200,marker='s',color=c_vals_f_g[i],edgecolors='black',lw=1)
-            
-#        cax, _ = matplotlib.colorbar.make_axes(ax)
-#        cbar = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm_range)
-        cbar = fig.colorbar(plot)
-
-        plt.show()
-
-    
-    
-def shot_map(data,home_team,away_team,home_col,away_col,pitch_col,line_col):
-    import pandas as pd
-    import matplotlib.pyplot as plt
     
     data = data
     home_team = home_team
@@ -1242,130 +1264,259 @@ def shot_map(data,home_team,away_team,home_col,away_col,pitch_col,line_col):
     
     shots = get_shots(data)
     
-    fig,ax = plt.subplots(figsize=(10.4,6.8))
-    plt.xlim(-1,105)
-    plt.ylim(-1,69)
-    ax.axis('off')
-    
-    ### Plotting pitch ###
-    # side and goal lines #
-    lx1 = [0,104,104,0,0]
-    ly1 = [0,0,68,68,0]
-    # boxes, 6 yard box and goals
-    #outer boxes#
-    lx2 = [104,87.5,87.5,104]
-    ly2 = [13.84,13.84,54.16,54.16] 
-    ly3 = [13.84,13.84,54.16,54.16] 
-    lx3 = [0,16.5,16.5,0]
-    #goals#
-    lx4 = [104,104.2,104.2,104]
-    ly4 = [30.34,30.34,37.66,37.66]
-    lx5 = [0,-0.2,-0.2,0]
-    ly5 = [30.34,30.34,37.66,37.66]
-    #6 yard boxes#
-    lx6 = [104,98.5,98.5,104]
-    ly6 = [24.84,24.84,43.16,43.16]
-    lx7 = [0,5.5,5.5,0]
-    ly7 = [24.84,24.84,43.16,43.16]
-    #Halfway line
-    lx8 = [52,52]
-    ly8 = [0,68]
-    # Penalty spots and kickoff spot
-    plt.scatter(93,34,color=line_col,zorder=5)
-    plt.scatter(11,34,color=line_col,zorder=5)
-    plt.scatter(52,34,color=line_col,zorder=5)
-    #Circles
-    circle1 = plt.Circle((93.5,34), 9.15,ls='solid',lw=1.5,color=line_col, fill=False, zorder=1,alpha=1)
-    circle2 = plt.Circle((10.5,34), 9.15,ls='solid',lw=1.5,color=line_col, fill=False, zorder=1,alpha=1)
-    circle3 = plt.Circle((52, 34), 9.15,ls='solid',lw=1.5,color=line_col, fill=False, zorder=2,alpha=1)
-    # Rectangles in boxes
-    rec1 = plt.Rectangle((87.5,20), 16.5,30,ls='-',color=pitch_col, zorder=1,alpha=1)
-    rec2 = plt.Rectangle((0, 20), 16.5,30,ls='-',color=pitch_col, zorder=1,alpha=1) 
-    # Pitch rectangle
-    rec3 = plt.Rectangle((-1,-1), 106,70,color=pitch_col,zorder=0,alpha=1)
-
-    ax.add_artist(circle1)
-    ax.add_artist(circle2)
-    ax.add_artist(circle3)
-    ax.add_artist(rec1)
-    ax.add_artist(rec2)
-    ax.add_artist(rec3)
-    
-    plt.plot(lx1,ly1,color=line_col,zorder=5)
-    plt.plot(lx2,ly2,color=line_col,zorder=5)
-    plt.plot(lx3,ly3,color=line_col,zorder=5)
-    plt.plot(lx4,ly4,color=line_col,zorder=5)
-    plt.plot(lx5,ly5,color=line_col,zorder=5)
-    plt.plot(lx6,ly6,color=line_col,zorder=5)
-    plt.plot(lx7,ly7,color=line_col,zorder=5)
-    plt.plot(lx8,ly8,color=line_col,zorder=5)
+    fig, ax = draw_pitch(pitch_col,line_col,'h','f')
     
     ### Shot data ###
     hshots = shots[shots['team'] == home_team]
     ashots = shots[shots['team'] == away_team]
-    # Sorting into head and foot
+    
+    # Sorting into head, foot, PK/FK, PK (where PK is just used for xG sums and is not plotted)
     hshots_h = hshots[hshots['body_part'] == 'Head']
-    hshots_f = hshots[(hshots['body_part'] == 'Left Foot')|(hshots['body_part'] == 'Right Foot')]
+    #hshots_f = hshots[(hshots['body_part'] == 'Left Foot')|(hshots['body_part'] == 'Right Foot')]
+    hshots_f = hshots[((hshots['body_part'] == 'Left Foot')|(hshots['body_part'] == 'Right Foot'))&(hshots['shot_type'] != 'Penalty')&(hshots['shot_type'] != 'Free Kick')]
+    hshots_pfk = hshots[(hshots['shot_type'] == 'Penalty')|(hshots['shot_type'] == 'Free Kick')]
+    hshots_p = hshots[(hshots['shot_type'] == 'Penalty')]
+    hshots_g = hshots[hshots['outcome'] == 'Goal']
+    
     ashots_h = ashots[ashots['body_part'] == 'Head']
-    ashots_f = ashots[(ashots['body_part'] == 'Left Foot')|(ashots['body_part'] == 'Right Foot')]
+    ashots_f = ashots[((ashots['body_part'] == 'Left Foot')|(ashots['body_part'] == 'Right Foot'))&(ashots['shot_type'] != 'Penalty')&(ashots['shot_type'] != 'Free Kick')]
+    ashots_pfk = ashots[(ashots['shot_type'] == 'Penalty')|(ashots['shot_type'] == 'Free Kick')]
+    ashots_p = ashots[(ashots['shot_type'] == 'Penalty')]
+    ashots_g = ashots[ashots['outcome'] == 'Goal']
+    
     hshots_h_g = hshots_h[hshots_h['outcome'] == 'Goal']
     hshots_f_g = hshots_f[hshots_f['outcome'] == 'Goal']
+    hshots_pfk_g = hshots_pfk[hshots_pfk['outcome'] == 'Goal']
+    
     ashots_h_g = ashots_h[ashots_h['outcome'] == 'Goal']
     ashots_f_g = ashots_f[ashots_f['outcome'] == 'Goal']
+    ashots_pfk_g = ashots_pfk[ashots_pfk['outcome'] == 'Goal']
     
-    # Recaling x and y data into metres
-    xh_h = ((120 - hshots_h.x) / 120) * 104 # Take away from 120 so these points will be on left side of pitch
-    yh_h = ((80 - hshots_h.y) / 80) * 68
-    xh_f = ((120 - hshots_f.x) / 120) * 104
-    yh_f = ((80 - hshots_f.y) / 80) * 68
+    # Getting coords
+    xh_h = (120 - hshots_h.x) # Take away from 120 so these points will be on left side of pitch
+    yh_h = hshots_h.y 
+    xh_f = (120 - hshots_f.x)
+    yh_f = hshots_f.y
+    xh_pfk = (120 - hshots_pfk.x)
+    yh_pfk = hshots_pfk.y
     
-    xa_h = (ashots_h.x / 120) * 104
-    ya_h = (ashots_h.y / 80) * 68
-    xa_f = (ashots_f.x / 120) * 104
-    ya_f = (ashots_f.y / 80) * 68
+    xa_h = ashots_h.x
+    ya_h = (80 - ashots_h.y) # Take away from 80 so wings are correct side
+    xa_f = ashots_f.x
+    ya_f = (80 - ashots_f.y)
+    xa_pfk = ashots_pfk.x
+    ya_pfk = (80 - ashots_pfk.y)
     
-    xh_h_g = ((120 - hshots_h_g.x) / 120) * 104 # Take away from 120 so these points will be on left side of pitch
-    yh_h_g = ((80 - hshots_h_g.y) / 80) * 68
-    xh_f_g = ((120 - hshots_f_g.x) / 120) * 104
-    yh_f_g = ((80 - hshots_f_g.y) / 80) * 68
+    xh_h_g = (120 - hshots_h_g.x)
+    yh_h_g = hshots_h_g.y
+    xh_f_g = (120 - hshots_f_g.x)
+    yh_f_g = hshots_f_g.y
+    xh_pfk_g = (120 - hshots_pfk_g.x)
+    yh_pfk_g = hshots_pfk_g.y
     
-    xa_h_g = (ashots_h_g.x / 120) * 104
-    ya_h_g = (ashots_h_g.y / 80) * 68
-    xa_f_g = (ashots_f_g.x / 120) * 104
-    ya_f_g = (ashots_f_g.y / 80) * 68
+    xa_h_g = ashots_h_g.x
+    ya_h_g = (80 - ashots_h_g.y)
+    xa_f_g = ashots_f_g.x
+    ya_f_g = (80 - ashots_f_g.y)
+    xa_pfk_g = ashots_pfk_g.x
+    ya_pfk_g = (80 - ashots_pfk_g.y)
     
     hshots_xG = hshots.sb_xg.values
     ashots_xG = ashots.sb_xg.values
     hshots_h_xG = hshots_h.sb_xg.values
     hshots_f_xG = hshots_f.sb_xg.values
+    hshots_pfk_xG = hshots_pfk.sb_xg.values
     ashots_h_xG = ashots_h.sb_xg.values
     ashots_f_xG = ashots_f.sb_xg.values
+    ashots_pfk_xG = ashots_pfk.sb_xg.values
     hshots_h_g_xG = hshots_h_g.sb_xg.values
     hshots_f_g_xG = hshots_f_g.sb_xg.values
+    hshots_pfk_g_xG = hshots_pfk_g.sb_xg.values
     ashots_h_g_xG = ashots_h_g.sb_xg.values
     ashots_f_g_xG = ashots_f_g.sb_xg.values
+    ashots_pfk_g_xG = ashots_pfk_g.sb_xg.values
     
     # Plot legend
-    ax.scatter(-100,-100,marker='o',c='grey',edgecolors='black',s=200,label='Head',alpha=0.6)
-    ax.scatter(-100,-100,marker='s',c='grey',edgecolors='black',s=200,label='Foot',alpha=0.6)
-    ax.legend(bbox_to_anchor=(0.70, 0.001),ncol=3,fontsize=14)
+    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.6)
+    ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.6)
+    ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.6)
+    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Goal',alpha=0.6,lw=3)
+    ax.legend(bbox_to_anchor=(0.5, 0.01),ncol=2,fontsize=14,frameon=False)
     
-    # Plotting shots
-    # Home shots
-    plt.scatter(xh_h, yh_h, s=hshots_h_xG*1000, marker='o', c=home_col, edgecolors="black",zorder=100)
-    plt.scatter(xh_f, yh_f, s=hshots_f_xG*1000, marker='s', c=home_col, edgecolors="black",zorder=100)
-    # Away shots
-    plt.scatter(xa_h, ya_h, s=ashots_h_xG*1000, marker='o', c=away_col, edgecolors="black",zorder=100)
-    plt.scatter(xa_f, ya_f, s=ashots_f_xG*1000, marker='s', c=away_col, edgecolors="black",zorder=100)
-    # Home goals
-    plt.scatter(xh_h_g, yh_h_g, s=ashots_h_g_xG*1000, marker='o', c='Pink', edgecolors="black",zorder=100)
-    plt.scatter(xh_f_g, yh_f_g, s=ashots_f_g_xG*1000, marker='s', c='Pink', edgecolors="black",zorder=100)
-    # Away goals
-    plt.scatter(xa_h_g, ya_h_g, s=ashots_h_g_xG*1000, marker='o', c='Pink', edgecolors="black",zorder=100)
-    plt.scatter(xa_f_g, ya_f_g, s=ashots_f_g_xG*1000, marker='s', c='Pink', edgecolors="black",zorder=100)
+    ax.text(0.0, 1.0, home_team + ' - ' + str(len(hshots_g)), ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+    ax.text(1.0, 1.0, str(len(ashots_g)) + ' - ' + away_team, ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+    if (len(hshots_p) > 0 and len(ashots_p) > 0):
+        ax.text(0.51, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(0.45, 1.0, '(+' + str(len(hshots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+        ax.text(0.57, 1.0, '(+' + str(len(ashots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+    elif (len(hshots_p) > 0 and len(ashots_p) == 0):
+        ax.text(0.51, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(0.45, 1.0, '(+' + str(len(hshots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+    elif (len(hshots_p) == 0 and len(ashots_p) > 0):
+        ax.text(0.51, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='center', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(0.57, 1.0, '(+' + str(len(ashots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+    else:
+        ax.text(0.51, 1.0, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='center', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
 
-    plt.title(str(home_team) + " vs " + str(away_team) + "\n xG sum " + str(round(sum(hshots.sb_xg),2)) + ' - ' + str(round(sum(ashots_xG),2)),fontsize=18)
-    #plt.title(r'$\bf{{{0}}}$'.format(str(team)))
+    
+    zo=10
+    if xg_display.lower().startswith("s"):
+        
+        size_h_f = xg_size(hshots_f_xG)
+        size_h_h = xg_size(hshots_h_xG)
+        size_h_pfk = xg_size(hshots_pfk_xG)
+        size_a_f = xg_size(ashots_f_xG)
+        size_a_h = xg_size(ashots_h_xG)
+        size_a_pfk = xg_size(ashots_pfk_xG)
+        
+        size_h_f_g = xg_size(hshots_f_g_xG)
+        size_h_h_g = xg_size(hshots_h_g_xG)
+        size_h_pfk_g = xg_size(hshots_pfk_g_xG)
+        size_a_f_g = xg_size(ashots_f_g_xG)
+        size_a_h_g = xg_size(ashots_h_g_xG)
+        size_a_pfk_g = xg_size(ashots_pfk_g_xG)
+        
+        # Plotting shots
+        # Home shots
+        plt.scatter(xh_f, yh_f, s=size_h_f*1000, marker='H', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        plt.scatter(xh_h, yh_h, s=size_h_h*1000, marker='o', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        plt.scatter(xh_pfk, yh_pfk, s=size_h_pfk*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        # Away shots
+        plt.scatter(xa_f, ya_f, s=size_a_f*1000, marker='H', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        plt.scatter(xa_h, ya_h, s=size_a_h*1000, marker='o', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        plt.scatter(xa_pfk, ya_pfk, s=size_a_pfk*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        # Home goals
+        plt.scatter(xh_f_g, yh_f_g, s=size_h_f_g*1000, marker='H', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
+        plt.scatter(xh_h_g, yh_h_g, s=size_h_h_g*1000, marker='o', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
+        plt.scatter(xh_pfk_g, yh_pfk_g, s=size_h_pfk_g*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
+        # Away goals
+        plt.scatter(xa_f_g, ya_f_g, s=size_a_f_g*1000, marker='H', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
+        plt.scatter(xa_h_g, ya_h_g, s=size_a_h_g*1000, marker='o', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
+        plt.scatter(xa_pfk_g, ya_pfk_g, s=size_a_pfk_g*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
+
+        plt.show()
+    
+    else:
+        ## Colour representing xG
+        norm_range = matplotlib.colors.Normalize(vmin=0, vmax=0.80)
+        
+        cmap, cmap_h_f, levels, xfrm_levels = xg_colourbar(hshots_f_xG,colourmap)
+        cmap_h_h = xg_colourbar(hshots_h_xG,colourmap)[1]
+        cmap_h_pfk = xg_colourbar(hshots_pfk_xG,colourmap)[1]
+        cmap_h_f_g = xg_colourbar(hshots_f_g_xG,colourmap)[1]
+        cmap_h_h_g = xg_colourbar(hshots_h_g_xG,colourmap)[1]
+        cmap_h_pfk_g = xg_colourbar(hshots_pfk_g_xG,colourmap)[1]
+        
+        cmap_a_f = xg_colourbar(ashots_f_xG,colourmap)[1]
+        cmap_a_h = xg_colourbar(ashots_h_xG,colourmap)[1]
+        cmap_a_pfk = xg_colourbar(ashots_pfk_xG,colourmap)[1]
+        cmap_a_f_g = xg_colourbar(ashots_f_g_xG,colourmap)[1]
+        cmap_a_h_g = xg_colourbar(ashots_h_g_xG,colourmap)[1]
+        cmap_a_pfk_g = xg_colourbar(ashots_pfk_g_xG,colourmap)[1]
+        
+        # Plot shots
+        ax.scatter(xh_f,yh_f,zorder=zo+1,s=200,marker='H',color=cmap_h_f,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(xh_h,yh_h,zorder=zo+1,s=200,marker='o',color=cmap_h_h,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(xh_pfk,yh_pfk,zorder=zo+1,s=200,marker='s',color=cmap_h_pfk,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(xa_f,ya_f,zorder=zo+1,s=200,marker='H',color=cmap_a_f,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(xa_h,ya_h,zorder=zo+1,s=200,marker='o',color=cmap_a_h,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(xa_pfk,ya_pfk,zorder=zo+1,s=200,marker='s',color=cmap_a_pfk,edgecolors='black',lw=1,alpha=0.8)
+            
+        # Plotting goals
+        ax.scatter(xh_f_g,yh_f_g, s=200, marker='H', c=cmap_h_f_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(xh_h_g,yh_h_g, s=200, marker='o', c=cmap_h_h_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(xh_pfk_g,yh_pfk_g, s=200,marker='s',c=cmap_h_pfk_g,edgecolors='black',zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(xa_f_g,ya_f_g, s=200, marker='H', c=cmap_a_f_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(xa_h_g,ya_h_g, s=200, marker='o', c=cmap_a_h_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(xa_pfk_g,ya_pfk_g, s=200,marker='s',c=cmap_a_pfk_g,edgecolors='black',zorder=zo+2,alpha=0.9,lw=3)
+
+        # Colourbar
+        cax = fig.add_axes([0.55, 0.06, 0.3, 0.04])
+        cax.set_title('xG',fontsize=14)
+        cax.tick_params(labelsize=12)
+        cbar = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm_range, orientation="horizontal")
+        cbar.set_ticks([xfrm_levels[i] for i in [0,4,6,-1]])
+        cbar.set_ticklabels(["%.2f" % levels[i] for i in [0,4,6,-1]])
+
+
+        plt.show()
+    
+    
+##### Plots for passes #####
+
+def pass_map_player(data,player,pitch_col,line_col,region):
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import matplotlib.patheffects as pe
+    import matplotlib
+    
+    data = data
+    player = player
+    pitch_col = pitch_col
+    line_col = line_col
+    region = region
+    
+    passes = get_pass(data)
+    if region.lower().startswith("t"):
+        pass_op = passes[(passes['pass_type'] == 'Standard')&(passes['player'] == player)&(passes['end_x'] >= 80)]
+    elif region.lower().startswith("b"):
+        pass_op = passes[(passes['pass_type'] == 'Standard')&(passes['player'] == player)&(passes['end_x'] >= 102)&(passes['end_y'] >= 18)&(passes['end_y'] <= 62)]
+    else:
+        pass_op = passes[(passes['pass_type'] == 'Standard')&(passes['player'] == player)]
+       
+    pass_op_s = pass_op[(pass_op['outcome'] == 'Complete')&(pass_op['shot_assist'].isnull())&(pass_op['goal_assist'].isnull())]
+    pass_op_u = pass_op[((pass_op['outcome'] == 'Incomplete')|(pass_op['outcome'] == 'Out'))&(pass_op['shot_assist'].isnull())&(pass_op['goal_assist'].isnull())]
+    pass_op_sa = pass_op[pass_op['shot_assist'].notnull()]
+    pass_op_ga = pass_op[pass_op['goal_assist'].notnull()]
+    
+    fig, ax = draw_pitch('w','k','h','f')
+
+    arrow_params = {'width': 0.1,'head_width': 1.0,'head_length': 2.0,'length_includes_head': True}
+
+    xs = pass_op_s.x.values
+    ys = (80 - pass_op_s.y.values)
+    xes = pass_op_s.end_x.values
+    yes = (80 - pass_op_s.end_y.values)
+    xu = pass_op_u.x.values
+    yu = (80 - pass_op_u.y.values)
+    xeu = pass_op_u.end_x.values
+    yeu = (80 - pass_op_u.end_y.values)
+    xsa = pass_op_sa.x.values
+    ysa = (80 - pass_op_sa.y.values)
+    xesa = pass_op_sa.end_x.values
+    yesa = (80 - pass_op_sa.end_y.values)
+    xga = pass_op_ga.x.values
+    yga = (80 - pass_op_ga.y.values)
+    xega = pass_op_ga.end_x.values
+    yega = (80 - pass_op_ga.end_y.values)
+
+    ax.text(0.0, 1.0, player, ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+    
+    if region.lower().startswith("t"):
+        ax.text(1.0, 1.0, 'Final Third Passes', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+    elif region.lower().startswith("b"):
+        ax.text(1.0, 1.0, 'Passes into Box', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+    else:
+        ax.text(1.0, 1.0, 'Passes', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+
+    ax.scatter(-100,-100,marker='o',c='xkcd:lightblue',edgecolors='black',s=200,label='Successful',alpha=0.5)
+    ax.scatter(-100,-100,marker='o',c='k',edgecolors='black',s=200,label='Unsuccessful',alpha=0.2)
+    ax.scatter(-100,-100,marker='o',c='xkcd:green',edgecolors='black',s=200,label='Shot Assist',alpha=1)
+    ax.scatter(-100,-100,marker='o',c='xkcd:crimson',edgecolors='black',s=200,label='Goal Assist',alpha=1)
+    ax.legend(loc=3,bbox_to_anchor=(0., -0.08),ncol=4,fontsize=14,frameon=False)
+
+    zo = 10
+    ax.scatter(xs,ys,c='xkcd:lightblue',edgecolors='black',zorder=zo,alpha=0.5)
+    for i in range(len(xs)):
+        ax.arrow(xs[i],ys[i],xes[i]-xs[i],yes[i]-ys[i],color='xkcd:lightblue',**arrow_params,alpha=0.5)
+    ax.scatter(xu,yu,c='k',edgecolors='black',zorder=zo,alpha=0.2)
+    ax.scatter(xsa,ysa,c='xkcd:green',edgecolors='black',zorder=zo+1,alpha=0.9)
+    for i in range(len(xsa)):
+        ax.arrow(xsa[i],ysa[i],xesa[i]-xsa[i],yesa[i]-ysa[i],color='xkcd:green',**arrow_params)
+
+    ax.scatter(xga,yga,c='xkcd:crimson',edgecolors='black',zorder=zo+1,alpha=0.9)
+    for i in range(len(xga)):
+        ax.arrow(xga[i],yga[i],xega[i]-xga[i],yega[i]-yga[i],color='xkcd:crimson',**arrow_params)
+
+
     plt.show()
-    
-    
