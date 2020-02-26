@@ -42,6 +42,7 @@ def clean_event_data(data):
     import pandas as pd
     
     ind = []
+    eid = []
     per = []
     m = []
     s = []
@@ -66,6 +67,11 @@ def clean_event_data(data):
             ind.append(data[i]['index'])
         else:
             ind.append(0)
+            
+        if "id" in data[i]:
+            eid.append(data[i]['id'])
+        else:
+            eid.append(0)
         
         if "period" in data[i]:
             per.append(data[i]['period'])
@@ -179,6 +185,16 @@ def clean_event_data(data):
                 end_x.append(None)
                 end_y.append(None)
             out.append(None)
+            
+        elif "dribble" in data[i]:
+            if "outcome" in data[i]['dribble']:
+                out.append(data[i]['dribble']['outcome']['name'])
+            elif "outcome" not in data[i]['dribble']:
+                out.append(None)
+            end_x.append(None)
+            end_y.append(None)
+            
+
         else:
             end_x.append(None)
             end_y.append(None)
@@ -186,6 +202,7 @@ def clean_event_data(data):
     
     match_events = pd.DataFrame()
     match_events['m_index'] = ind
+    match_events['event_id'] = eid
     match_events['period'] = per
     match_events['minute'] = m
     match_events['second'] = s
@@ -674,6 +691,7 @@ def get_carry(data):
     
     i = 0
     ind = []
+    eid = []
     per = []
     m = []
     s = []
@@ -688,12 +706,18 @@ def get_carry(data):
     psr = []
     end_x = []
     end_y = []
+    rev = []
     
     for i in range(len(carry_data)):
         if "index" in carry_data[i]:
             ind.append(carry_data[i]['index'])
         else:
             ind.append(0)
+            
+        if "id" in data[i]:
+            eid.append(carry_data[i]['id'])
+        else:
+            eid.append(0)
     
         if "period" in carry_data[i]:
             per.append(carry_data[i]['period'])
@@ -759,8 +783,14 @@ def get_carry(data):
             end_x.append(None)
             end_y.append(None)
             
+        if "related_events" in carry_data[i]:
+            rev.append(carry_data[i]['related_events'])
+        else:
+            rev.append(0)
+            
     carries = pd.DataFrame()
     carries['index'] = ind
+    carries['event_id'] = eid
     carries['period'] = per
     carries['minute'] = m
     carries['second'] = s
@@ -775,6 +805,7 @@ def get_carry(data):
     carries['under_pressure'] = psr
     carries['end_x'] = end_x
     carries['end_y'] = end_y
+    carries['related_events'] = rev
         
     return carries
 
@@ -980,7 +1011,7 @@ def xg_size(xg_vals):
     return sizes
 
 
-def shot_map_team(data,team,pitch_col,line_col,xg_display,colourmap):
+def shot_map_team(data,team,xg_display,pitch_col='w',line_col='k',colourmap='jet'):
     import pandas as pd
     import numpy as np
     import matplotlib.pyplot as plt
@@ -1120,11 +1151,13 @@ def shot_map_team(data,team,pitch_col,line_col,xg_display,colourmap):
         else:
             ax.text(1.0, 1.0, str(round(sum(tshots.sb_xg),2)) + 'xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
 
-        plt.show()        
+        plt.show() 
+        
+    return fig, ax
         
 
 
-def shot_map_player(data,player,pitch_col,line_col,xg_display,colourmap):
+def shot_map_player(data,player,xg_display,date=None,includepens=False,pitch_col='w',line_col='k',colourmap='jet'):
     import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib.patheffects as pe
@@ -1147,90 +1180,128 @@ def shot_map_player(data,player,pitch_col,line_col,xg_display,colourmap):
     pshots = shots[shots['player'] == player]
     pshots_h = pshots[(pshots['body_part'] == 'Head')]
     pshots_f = pshots[((pshots['body_part'] == 'Left Foot')|(pshots['body_part'] == 'Right Foot'))&(pshots['shot_type'] != 'Penalty')&(pshots['shot_type'] != 'Free Kick')]
-    pshots_pfk = pshots[(pshots['shot_type'] == 'Penalty')|(pshots['shot_type'] == 'Free Kick')]
     pshots_p = pshots[(pshots['shot_type'] == 'Penalty')]
+    pshots_fk = pshots[(pshots['shot_type'] == 'Free Kick')]
     
     pshots_h_g = pshots_h[pshots_h['outcome'] == 'Goal']
     pshots_f_g = pshots_f[pshots_f['outcome'] == 'Goal']
-    pshots_pfk_g = pshots_pfk[pshots_pfk['outcome'] == 'Goal']
+    pshots_fk_g = pshots_fk[pshots_fk['outcome'] == 'Goal']
+    pshots_p_g = pshots_p[pshots_p['outcome'] == 'Goal']
+    
+    goals = len(pshots_h_g) + len(pshots_f_g) + len(pshots_fk_g)
+    goals_pen = len(pshots_p_g)
+    team = pshots['team'].unique()[0]
     
     xh = pshots_h['x'].values
     yh = pshots_h['y'].values
     xf = pshots_f['x'].values
     yf = pshots_f['y'].values
-    xpfk = pshots_pfk['x'].values
-    ypfk = pshots_pfk['y'].values
+    xfk = pshots_fk['x'].values
+    yfk = pshots_fk['y'].values
+    xp = pshots_p['x'].values
+    yp = pshots_p['y'].values
     
     xh_g = pshots_h_g['x'].values
     yh_g = pshots_h_g['y'].values
     xf_g = pshots_f_g['x'].values
     yf_g = pshots_f_g['y'].values
-    xpfk_g = pshots_pfk_g['x'].values
-    ypfk_g = pshots_pfk_g['y'].values
+    xfk_g = pshots_fk_g['x'].values
+    yfk_g = pshots_fk_g['y'].values
+    xp_g = pshots_p_g['x'].values
+    yp_g = pshots_p_g['y'].values
     
     h_xG = pshots_h.sb_xg.values
     f_xG = pshots_f.sb_xg.values
-    pfk_xG = pshots_pfk.sb_xg.values
+    fk_xG = pshots_fk.sb_xg.values
+    p_xG = pshots_p.sb_xg.values
     h_g_xG = pshots_h_g.sb_xg.values
     f_g_xG = pshots_f_g.sb_xg.values
-    pfk_g_xG = pshots_pfk_g.sb_xg.values
+    fk_g_xG = pshots_fk_g.sb_xg.values
+    p_g_xG = pshots_p_g.sb_xg.values
     
     # Plot legend
-    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.6)
-    ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.6)
-    ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.6)
-    ax.legend(bbox_to_anchor=(0.99, 0.01),ncol=3,fontsize=14,loc=4,shadow=True)
+    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.9)
+    ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.9)
+    if includepens == True:
+        ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.9)
+    else:
+        ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='FK',alpha=0.9)
+    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Goal',alpha=0.9,lw=3)
+        
+    ax.legend(bbox_to_anchor=(0.99, 0.01),ncol=4,fontsize=14,loc=4,shadow=True)
+    
+    # Add date
+    if date != None:
+        ax.text(0.0, 1.0, team + ' - ' + str(date), ha='left', va='bottom', transform=ax.transAxes, fontsize=14)
+    else:
+        ax.text(0.0, 1.0, team, ha='left', va='bottom', transform=ax.transAxes, fontsize=14)
+    
+    # Player name
+    ax.text(0.0, 1.03, player, ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+    
+    # Goals and xG
+    if len(pshots_p) > 0:
+        ax.text(1.0, 1.03, str(goals) + ' Goals : ' + str(round(sum(pshots.sb_xg)-sum(pshots_p.sb_xg),2)) + ' xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(1.0, 1.0, '(+' + str(goals_pen) + ' Goals from ' + str(len(pshots_p)) + ' Pen)', ha='right', va='bottom', transform=ax.transAxes, fontsize=13)
+    else:
+        ax.text(1.0, 1.0, str(round(sum(pshots.sb_xg),2)) + 'xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
     
     zo=10
+    ## Size representing xG
     if xg_display.lower().startswith("s"):
         
         size_f = xg_size(f_xG)
         size_h = xg_size(h_xG)
-        size_pfk = xg_size(pfk_xG)
+        size_fk = xg_size(fk_xG)
+        size_p = xg_size(p_xG)
         
         size_f_g = xg_size(f_g_xG)
         size_h_g = xg_size(h_g_xG)
-        size_pfk_g = xg_size(pfk_g_xG)
+        size_fk_g = xg_size(fk_g_xG)
+        size_p_g = xg_size(p_g_xG)
 
         # Plotting shots
         ax.scatter(yf, xf, s=size_f*1000, marker='H', c="red", edgecolors="black",zorder=zo+1,alpha=0.9)
         ax.scatter(yh, xh, s=size_h*1000, marker='o', c="red", edgecolors="black",zorder=zo+1,alpha=0.9)
-        ax.scatter(ypfk,xpfk,s=size_pfk*1000,marker='s',c='red',edgecolors='black',zorder=zo+1,alpha=0.9)
+        ax.scatter(yfk, xfk, s=size_fk*1000, marker='s', c="red", edgecolors="black",zorder=zo+1,alpha=0.9)
         
         # Plotting goals
-        ax.scatter(yf_g, xf_g, s=size_f_g*1000, marker='H', c="r", edgecolors="black",zorder=zo+2,alpha=0.9,lw=5)
-        ax.scatter(yh_g, xh_g, s=size_h_g*1000, marker='o', c="r", edgecolors="black",zorder=zo+2,alpha=0.9)
-        ax.scatter(ypfk_g,xpfk_g,s=size_pfk_g*1000,marker='s',c='r',edgecolors='black',zorder=zo+2,alpha=0.9)
-
-        ax.text(0.0, 1.0, player, ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
-        if len(pshots_p) > 0:
-            ax.text(1.0, 1.03, str(round(sum(pshots.sb_xg)-sum(pshots_p.sb_xg),2)) + ' xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
-            ax.text(1.0, 1.0, '(+' + str(len(pshots_p)) + ' Pen)', ha='right', va='bottom', transform=ax.transAxes, fontsize=13)
-        else:
-            ax.text(1.0, 1.0, str(round(sum(pshots.sb_xg),2)) + 'xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi') 
+        ax.scatter(yf_g, xf_g, s=size_f_g*1000, marker='H', c="r", edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(yh_g, xh_g, s=size_h_g*1000, marker='o', c="r", edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(yfk_g, xfk_g, s=size_fk_g*1000, marker='s', c="r", edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
         
+        if includepens == True:
+            ax.scatter(yp, xp, s=size_p*1000, marker='s', c="red", edgecolors="black",zorder=zo+1,alpha=0.9)
+            ax.scatter(yp_g, xp_g, s=size_p_g*1000, marker='s', c="r", edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+            
         plt.show()
     
+    ## Colour representing xG
     else:
-        ## Colour representing xG
         norm_range = matplotlib.colors.Normalize(vmin=0, vmax=0.80)
         
         cmap, cmap_nonlin_f, levels, xfrm_levels = xg_colourbar(f_xG,colourmap)
         cmap_nonlin_h = xg_colourbar(h_xG,colourmap)[1]
-        cmap_nonlin_pfk = xg_colourbar(pfk_xG,colourmap)[1]
+        cmap_nonlin_fk = xg_colourbar(fk_xG,colourmap)[1]
+        cmap_nonlin_p = xg_colourbar(p_xG,colourmap)[1]
         cmap_nonlin_f_g = xg_colourbar(f_g_xG,colourmap)[1]
         cmap_nonlin_h_g = xg_colourbar(h_g_xG,colourmap)[1]
-        cmap_nonlin_pfk_g = xg_colourbar(pfk_g_xG,colourmap)[1]
+        cmap_nonlin_fk_g = xg_colourbar(fk_g_xG,colourmap)[1]
+        cmap_nonlin_p_g = xg_colourbar(p_g_xG,colourmap)[1]
         
         # Plot shots
         ax.scatter(yf,xf,zorder=zo+1,s=200,marker='H',color=cmap_nonlin_f,edgecolors='black',lw=1,alpha=0.8)
         ax.scatter(yh,xh,zorder=zo+1,s=200,marker='o',color=cmap_nonlin_h,edgecolors='black',lw=1,alpha=0.8)
-        ax.scatter(ypfk,xpfk,zorder=zo+1,s=200,marker='s',color=cmap_nonlin_pfk,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(yfk,xfk,zorder=zo+1,s=200,marker='s',color=cmap_nonlin_fk,edgecolors='black',lw=1,alpha=0.8)
             
         # Plotting goals
         ax.scatter(yf_g, xf_g, s=200, marker='H', c=cmap_nonlin_f_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
         ax.scatter(yh_g, xh_g, s=200, marker='o', c=cmap_nonlin_h_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
-        ax.scatter(ypfk_g,xpfk_g,s=200,marker='s',c=cmap_nonlin_pfk_g,edgecolors='black',zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(yfk_g, xfk_g, s=200, marker='s', c=cmap_nonlin_fk_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        
+        if includepens == True:
+            ax.scatter(yp,xp,zorder=zo+1,s=200,marker='s',color=cmap_nonlin_p,edgecolors='black',lw=1,alpha=0.8)
+            ax.scatter(yp_g, xp_g, s=200, marker='s', c=cmap_nonlin_p_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
 
         # Colourbar
         cax = fig.add_axes([0.55, 0.23, 0.3, 0.04]) # Can just add_axes but then must place manually
@@ -1239,19 +1310,14 @@ def shot_map_player(data,player,pitch_col,line_col,xg_display,colourmap):
         cbar = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm_range, orientation="horizontal")
         cbar.set_ticks([xfrm_levels[i] for i in [0,4,6,-1]])
         cbar.set_ticklabels(["%.2f" % levels[i] for i in [0,4,6,-1]])
-        
-        ax.text(0.0, 1.0, player, ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
-        if len(pshots_p) > 0:
-            ax.text(1.0, 1.03, str(round(sum(pshots.sb_xg)-sum(pshots_p.sb_xg),2)) + ' xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
-            ax.text(1.0, 1.0, '(+' + str(len(pshots_p)) + ' Pen)', ha='right', va='bottom', transform=ax.transAxes, fontsize=13)
-        else:
-            ax.text(1.0, 1.0, str(round(sum(pshots.sb_xg),2)) + 'xG', ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
-
-
+            
         plt.show()
+        
+    return fig, ax
     
     
-def shot_map(data,home_team,away_team,home_col,away_col,pitch_col,line_col,xg_display,colourmap):
+def shot_map(data,home_team,away_team,xg_display,date=None,
+             includepens=False,home_col='xkcd:blue',away_col='xkcd:red',pitch_col='w',line_col='k',colourmap='jet'):
     import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib
@@ -1259,8 +1325,12 @@ def shot_map(data,home_team,away_team,home_col,away_col,pitch_col,line_col,xg_di
     data = data
     home_team = home_team
     away_team = away_team
+    xg_display = xg_display
+    home_col = home_col
+    away_col = away_col
     pitch_col = pitch_col
     line_col = line_col
+    colourmap = colourmap
     
     shots = get_shots(data)
     
@@ -1272,164 +1342,232 @@ def shot_map(data,home_team,away_team,home_col,away_col,pitch_col,line_col,xg_di
     
     # Sorting into head, foot, PK/FK, PK (where PK is just used for xG sums and is not plotted)
     hshots_h = hshots[hshots['body_part'] == 'Head']
-    #hshots_f = hshots[(hshots['body_part'] == 'Left Foot')|(hshots['body_part'] == 'Right Foot')]
     hshots_f = hshots[((hshots['body_part'] == 'Left Foot')|(hshots['body_part'] == 'Right Foot'))&(hshots['shot_type'] != 'Penalty')&(hshots['shot_type'] != 'Free Kick')]
-    hshots_pfk = hshots[(hshots['shot_type'] == 'Penalty')|(hshots['shot_type'] == 'Free Kick')]
+    hshots_fk = hshots[(hshots['shot_type'] == 'Free Kick')]
     hshots_p = hshots[(hshots['shot_type'] == 'Penalty')]
     hshots_g = hshots[hshots['outcome'] == 'Goal']
     
     ashots_h = ashots[ashots['body_part'] == 'Head']
     ashots_f = ashots[((ashots['body_part'] == 'Left Foot')|(ashots['body_part'] == 'Right Foot'))&(ashots['shot_type'] != 'Penalty')&(ashots['shot_type'] != 'Free Kick')]
-    ashots_pfk = ashots[(ashots['shot_type'] == 'Penalty')|(ashots['shot_type'] == 'Free Kick')]
+    ashots_fk = ashots[(ashots['shot_type'] == 'Free Kick')]
     ashots_p = ashots[(ashots['shot_type'] == 'Penalty')]
     ashots_g = ashots[ashots['outcome'] == 'Goal']
     
     hshots_h_g = hshots_h[hshots_h['outcome'] == 'Goal']
     hshots_f_g = hshots_f[hshots_f['outcome'] == 'Goal']
-    hshots_pfk_g = hshots_pfk[hshots_pfk['outcome'] == 'Goal']
+    hshots_fk_g = hshots_fk[hshots_fk['outcome'] == 'Goal']
+    hshots_p_g = hshots_p[hshots_p['outcome'] == 'Goal']
     
     ashots_h_g = ashots_h[ashots_h['outcome'] == 'Goal']
     ashots_f_g = ashots_f[ashots_f['outcome'] == 'Goal']
-    ashots_pfk_g = ashots_pfk[ashots_pfk['outcome'] == 'Goal']
+    ashots_fk_g = ashots_fk[ashots_fk['outcome'] == 'Goal']
+    ashots_p_g = ashots_p[ashots_p['outcome'] == 'Goal']
     
     # Getting coords
     xh_h = (120 - hshots_h.x) # Take away from 120 so these points will be on left side of pitch
     yh_h = hshots_h.y 
     xh_f = (120 - hshots_f.x)
     yh_f = hshots_f.y
-    xh_pfk = (120 - hshots_pfk.x)
-    yh_pfk = hshots_pfk.y
+    xh_fk = (120 - hshots_fk.x)
+    yh_fk = hshots_fk.y
+    xh_p = (120 - hshots_p.x)
+    yh_p = hshots_p.y
     
     xa_h = ashots_h.x
     ya_h = (80 - ashots_h.y) # Take away from 80 so wings are correct side
     xa_f = ashots_f.x
     ya_f = (80 - ashots_f.y)
-    xa_pfk = ashots_pfk.x
-    ya_pfk = (80 - ashots_pfk.y)
-    
+    xa_fk = ashots_fk.x
+    ya_fk = (80 - ashots_fk.y)
+    xa_p = ashots_p.x
+    ya_p = (80 - ashots_p.y)
+
     xh_h_g = (120 - hshots_h_g.x)
     yh_h_g = hshots_h_g.y
     xh_f_g = (120 - hshots_f_g.x)
     yh_f_g = hshots_f_g.y
-    xh_pfk_g = (120 - hshots_pfk_g.x)
-    yh_pfk_g = hshots_pfk_g.y
+    xh_fk_g = (120 - hshots_fk_g.x)
+    yh_fk_g = hshots_fk_g.y
+    xh_p_g = (120 - hshots_p_g.x)
+    yh_p_g = hshots_p_g.y
     
     xa_h_g = ashots_h_g.x
     ya_h_g = (80 - ashots_h_g.y)
     xa_f_g = ashots_f_g.x
     ya_f_g = (80 - ashots_f_g.y)
-    xa_pfk_g = ashots_pfk_g.x
-    ya_pfk_g = (80 - ashots_pfk_g.y)
+    xa_fk_g = ashots_fk_g.x
+    ya_fk_g = (80 - ashots_fk_g.y)
+    xa_p_g = ashots_p_g.x
+    ya_p_g = (80 - ashots_p_g.y)
     
     hshots_xG = hshots.sb_xg.values
     ashots_xG = ashots.sb_xg.values
     hshots_h_xG = hshots_h.sb_xg.values
     hshots_f_xG = hshots_f.sb_xg.values
-    hshots_pfk_xG = hshots_pfk.sb_xg.values
+    hshots_fk_xG = hshots_fk.sb_xg.values
+    hshots_p_xG = hshots_p.sb_xg.values
     ashots_h_xG = ashots_h.sb_xg.values
     ashots_f_xG = ashots_f.sb_xg.values
-    ashots_pfk_xG = ashots_pfk.sb_xg.values
+    ashots_fk_xG = ashots_fk.sb_xg.values
+    ashots_p_xG = ashots_p.sb_xg.values
+    
     hshots_h_g_xG = hshots_h_g.sb_xg.values
     hshots_f_g_xG = hshots_f_g.sb_xg.values
-    hshots_pfk_g_xG = hshots_pfk_g.sb_xg.values
+    hshots_fk_g_xG = hshots_fk_g.sb_xg.values
+    hshots_p_g_xG = hshots_p_g.sb_xg.values
     ashots_h_g_xG = ashots_h_g.sb_xg.values
     ashots_f_g_xG = ashots_f_g.sb_xg.values
-    ashots_pfk_g_xG = ashots_pfk_g.sb_xg.values
+    ashots_fk_g_xG = ashots_fk_g.sb_xg.values
+    ashots_p_g_xG = ashots_p_g.sb_xg.values
     
     # Plot legend
-    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.6)
-    ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.6)
-    ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.6)
-    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Goal',alpha=0.6,lw=3)
+    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Foot',alpha=0.9)
+    ax.scatter(-100,-100,marker='o',c='w',edgecolors='black',s=200,label='Head',alpha=0.9)
+    if includepens == True:
+        ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='Penalty/FK',alpha=0.9)
+    else:
+        ax.scatter(-100,-100,marker='s',c='w',edgecolors='black',s=200,label='FK',alpha=0.9)
+    ax.scatter(-100,-100,marker='H',c='w',edgecolors='black',s=200,label='Goal',alpha=0.9,lw=3)
     ax.legend(bbox_to_anchor=(0.5, 0.01),ncol=2,fontsize=14,frameon=False)
     
-    ax.text(0.0, 1.0, home_team + ' - ' + str(len(hshots_g)), ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
-    ax.text(1.0, 1.0, str(len(ashots_g)) + ' - ' + away_team, ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='demi')
+    # Add date
+    if date != None:
+        ax.text(0.02, 0.93, str(date), ha='left', va='bottom', transform=ax.transAxes, fontsize=16)
+    
+    # Team names, goals, xG
     if (len(hshots_p) > 0 and len(ashots_p) > 0):
-        ax.text(0.51, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
-        ax.text(0.45, 1.0, '(+' + str(len(hshots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+        # Team names and goals
+        ax.text(0.0, 1.0, home_team + ' - ' + str(len(hshots_g)) + ' (' + str(len(hshots_p_g)) + ' Pen)', ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(1.0, 1.0, str(len(ashots_g)) + ' (' + str(len(ashots_p_g)) + ' Pen)' + ' - ' + away_team, ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        # xG totals
+        ax.text(0.50, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='center', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(0.43, 1.0, '(+' + str(len(hshots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
         ax.text(0.57, 1.0, '(+' + str(len(ashots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+    
     elif (len(hshots_p) > 0 and len(ashots_p) == 0):
-        ax.text(0.51, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
-        ax.text(0.45, 1.0, '(+' + str(len(hshots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+        # Team names and goals
+        ax.text(0.0, 1.0, home_team + ' - ' + str(len(hshots_g)) + ' (' + str(len(hshots_p_g)) + ' Pen)', ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(1.0, 1.0, str(len(ashots_g)) + ' - ' + away_team, ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        # xG totals
+        ax.text(0.50, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='center', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(0.43, 1.0, '(+' + str(len(hshots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+    
     elif (len(hshots_p) == 0 and len(ashots_p) > 0):
-        ax.text(0.51, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='center', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        # Team names and goals
+        ax.text(0.0, 1.0, home_team + ' - ' + str(len(hshots_g)), ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(1.0, 1.0, str(len(ashots_g)) + ' (' + str(len(ashots_p_g)) + ' Pen)' + ' - ' + away_team, ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        # xG totals
+        ax.text(0.50, 1.03, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='center', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
         ax.text(0.57, 1.0, '(+' + str(len(ashots_p)) + ' Pen)', ha='center', va='bottom', transform=ax.transAxes, fontsize=13)
+    
     else:
-        ax.text(0.51, 1.0, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='center', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        # Team names and goals
+        ax.text(0.0, 1.0, home_team + ' - ' + str(len(hshots_g)), ha='left', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        ax.text(1.0, 1.0, str(len(ashots_g)) + ' - ' + away_team, ha='right', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
+        # xG totals
+        ax.text(0.50, 1.0, str(round(sum(hshots.sb_xg)-sum(hshots_p.sb_xg),2)) + '  xG  ' + str(round(sum(ashots.sb_xg)-sum(ashots_p.sb_xg),2)), ha='center', va='bottom', transform=ax.transAxes, fontsize=18, fontweight='semibold')
 
     
     zo=10
+    ## Size representing xG
     if xg_display.lower().startswith("s"):
         
         size_h_f = xg_size(hshots_f_xG)
         size_h_h = xg_size(hshots_h_xG)
-        size_h_pfk = xg_size(hshots_pfk_xG)
+        size_fk_h = xg_size(hshots_fk_xG)
+        size_p_h = xg_size(hshots_p_xG)
+        #size_h_pfk = xg_size(hshots_pfk_xG)
         size_a_f = xg_size(ashots_f_xG)
         size_a_h = xg_size(ashots_h_xG)
-        size_a_pfk = xg_size(ashots_pfk_xG)
+        size_a_fk = xg_size(ashots_fk_xG)
+        size_a_p = xg_size(ashots_p_xG)
+        #size_a_pfk = xg_size(ashots_pfk_xG)
         
         size_h_f_g = xg_size(hshots_f_g_xG)
         size_h_h_g = xg_size(hshots_h_g_xG)
-        size_h_pfk_g = xg_size(hshots_pfk_g_xG)
+        size_h_fk_g = xg_size(hshots_fk_g_xG)
+        size_h_p_g = xg_size(hshots_p_g_xG)
+        #size_h_pfk_g = xg_size(hshots_pfk_g_xG)
         size_a_f_g = xg_size(ashots_f_g_xG)
         size_a_h_g = xg_size(ashots_h_g_xG)
-        size_a_pfk_g = xg_size(ashots_pfk_g_xG)
+        size_a_fk_g = xg_size(ashots_fk_g_xG)
+        size_a_p_g = xg_size(ashots_p_g_xG)
+        #size_a_pfk_g = xg_size(ashots_pfk_g_xG)
         
         # Plotting shots
         # Home shots
         plt.scatter(xh_f, yh_f, s=size_h_f*1000, marker='H', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
         plt.scatter(xh_h, yh_h, s=size_h_h*1000, marker='o', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
-        plt.scatter(xh_pfk, yh_pfk, s=size_h_pfk*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        plt.scatter(xh_fk, yh_fk, s=size_h_h*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        #plt.scatter(xh_pfk, yh_pfk, s=size_h_pfk*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
         # Away shots
         plt.scatter(xa_f, ya_f, s=size_a_f*1000, marker='H', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
         plt.scatter(xa_h, ya_h, s=size_a_h*1000, marker='o', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
-        plt.scatter(xa_pfk, ya_pfk, s=size_a_pfk*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        plt.scatter(xa_fk, ya_fk, s=size_a_h*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+        #plt.scatter(xa_pfk, ya_pfk, s=size_a_pfk*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
         # Home goals
         plt.scatter(xh_f_g, yh_f_g, s=size_h_f_g*1000, marker='H', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
         plt.scatter(xh_h_g, yh_h_g, s=size_h_h_g*1000, marker='o', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
-        plt.scatter(xh_pfk_g, yh_pfk_g, s=size_h_pfk_g*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
+        plt.scatter(xh_fk_g, yh_fk_g, s=size_h_fk_g*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
+        #plt.scatter(xh_pfk_g, yh_pfk_g, s=size_h_pfk_g*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
         # Away goals
         plt.scatter(xa_f_g, ya_f_g, s=size_a_f_g*1000, marker='H', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
         plt.scatter(xa_h_g, ya_h_g, s=size_a_h_g*1000, marker='o', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
-        plt.scatter(xa_pfk_g, ya_pfk_g, s=size_a_pfk_g*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
-
+        plt.scatter(xa_fk_g, ya_fk_g, s=size_a_fk_g*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
+        #plt.scatter(xa_pfk_g, ya_pfk_g, s=size_a_pfk_g*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
+        
+        if includepens == True:
+            plt.scatter(xh_p, yh_p, s=size_h_h*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+            plt.scatter(xa_p, ya_p, s=size_a_h*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+1,alpha=0.8)
+            plt.scatter(xh_p_g, yh_p_g, s=size_h_p_g*1000, marker='s', c=home_col, edgecolors="black",zorder=zo+2,lw=3)
+            plt.scatter(xa_p_g, ya_p_g, s=size_a_p_g*1000, marker='s', c=away_col, edgecolors="black",zorder=zo+2,lw=3)
+        
         plt.show()
     
+    ## Colour representing xG
     else:
-        ## Colour representing xG
         norm_range = matplotlib.colors.Normalize(vmin=0, vmax=0.80)
         
         cmap, cmap_h_f, levels, xfrm_levels = xg_colourbar(hshots_f_xG,colourmap)
         cmap_h_h = xg_colourbar(hshots_h_xG,colourmap)[1]
-        cmap_h_pfk = xg_colourbar(hshots_pfk_xG,colourmap)[1]
+        cmap_h_fk = xg_colourbar(hshots_fk_xG,colourmap)[1]
+        cmap_h_p = xg_colourbar(hshots_p_xG,colourmap)[1]
         cmap_h_f_g = xg_colourbar(hshots_f_g_xG,colourmap)[1]
         cmap_h_h_g = xg_colourbar(hshots_h_g_xG,colourmap)[1]
-        cmap_h_pfk_g = xg_colourbar(hshots_pfk_g_xG,colourmap)[1]
+        cmap_h_fk_g = xg_colourbar(hshots_fk_g_xG,colourmap)[1]
+        cmap_h_p_g = xg_colourbar(hshots_p_g_xG,colourmap)[1]
         
         cmap_a_f = xg_colourbar(ashots_f_xG,colourmap)[1]
         cmap_a_h = xg_colourbar(ashots_h_xG,colourmap)[1]
-        cmap_a_pfk = xg_colourbar(ashots_pfk_xG,colourmap)[1]
+        cmap_a_fk = xg_colourbar(ashots_fk_xG,colourmap)[1]
+        cmap_a_p = xg_colourbar(ashots_p_xG,colourmap)[1]
         cmap_a_f_g = xg_colourbar(ashots_f_g_xG,colourmap)[1]
         cmap_a_h_g = xg_colourbar(ashots_h_g_xG,colourmap)[1]
-        cmap_a_pfk_g = xg_colourbar(ashots_pfk_g_xG,colourmap)[1]
+        cmap_a_fk_g = xg_colourbar(ashots_fk_g_xG,colourmap)[1]
+        cmap_a_p_g = xg_colourbar(ashots_p_g_xG,colourmap)[1]
         
         # Plot shots
         ax.scatter(xh_f,yh_f,zorder=zo+1,s=200,marker='H',color=cmap_h_f,edgecolors='black',lw=1,alpha=0.8)
         ax.scatter(xh_h,yh_h,zorder=zo+1,s=200,marker='o',color=cmap_h_h,edgecolors='black',lw=1,alpha=0.8)
-        ax.scatter(xh_pfk,yh_pfk,zorder=zo+1,s=200,marker='s',color=cmap_h_pfk,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(xh_fk,yh_fk,zorder=zo+1,s=200,marker='s',color=cmap_h_fk,edgecolors='black',lw=1,alpha=0.8)
         ax.scatter(xa_f,ya_f,zorder=zo+1,s=200,marker='H',color=cmap_a_f,edgecolors='black',lw=1,alpha=0.8)
         ax.scatter(xa_h,ya_h,zorder=zo+1,s=200,marker='o',color=cmap_a_h,edgecolors='black',lw=1,alpha=0.8)
-        ax.scatter(xa_pfk,ya_pfk,zorder=zo+1,s=200,marker='s',color=cmap_a_pfk,edgecolors='black',lw=1,alpha=0.8)
+        ax.scatter(xa_fk,ya_fk,zorder=zo+1,s=200,marker='s',color=cmap_a_fk,edgecolors='black',lw=1,alpha=0.8)          
             
         # Plotting goals
         ax.scatter(xh_f_g,yh_f_g, s=200, marker='H', c=cmap_h_f_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
         ax.scatter(xh_h_g,yh_h_g, s=200, marker='o', c=cmap_h_h_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
-        ax.scatter(xh_pfk_g,yh_pfk_g, s=200,marker='s',c=cmap_h_pfk_g,edgecolors='black',zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(xh_fk_g,yh_fk_g, s=200, marker='s', c=cmap_h_fk_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
         ax.scatter(xa_f_g,ya_f_g, s=200, marker='H', c=cmap_a_f_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
         ax.scatter(xa_h_g,ya_h_g, s=200, marker='o', c=cmap_a_h_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
-        ax.scatter(xa_pfk_g,ya_pfk_g, s=200,marker='s',c=cmap_a_pfk_g,edgecolors='black',zorder=zo+2,alpha=0.9,lw=3)
+        ax.scatter(xa_fk_g,ya_fk_g, s=200, marker='s', c=cmap_a_fk_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
 
+        if includepens == True:
+            ax.scatter(xh_p,yh_p,zorder=zo+1,s=200,marker='s',color=cmap_h_p,edgecolors='black',lw=1,alpha=0.8)
+            ax.scatter(xa_p,ya_p,zorder=zo+1,s=200,marker='s',color=cmap_a_p,edgecolors='black',lw=1,alpha=0.8)
+            ax.scatter(xh_p_g,yh_p_g, s=200, marker='s', c=cmap_h_p_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+            ax.scatter(xa_p_g,ya_p_g, s=200, marker='s', c=cmap_a_p_g, edgecolors="black",zorder=zo+2,alpha=0.9,lw=3)
+        
         # Colourbar
         cax = fig.add_axes([0.55, 0.06, 0.3, 0.04])
         cax.set_title('xG',fontsize=14)
@@ -1440,11 +1578,13 @@ def shot_map(data,home_team,away_team,home_col,away_col,pitch_col,line_col,xg_di
 
 
         plt.show()
+        
+    return fig, ax
     
     
 ##### Plots for passes #####
 
-def pass_map_player(data,player,pitch_col,line_col,region):
+def pass_map_player(data,player,region,pitch_col='w',line_col='k'):
     import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib.patheffects as pe
@@ -1520,3 +1660,5 @@ def pass_map_player(data,player,pitch_col,line_col,region):
 
 
     plt.show()
+    
+    return fig, ax
