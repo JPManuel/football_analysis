@@ -314,6 +314,7 @@ def get_shots(data):
     
     i = 0
     ind = []
+    eid = []
     per = []
     m = []
     s = []
@@ -345,6 +346,11 @@ def get_shots(data):
             ind.append(shot_data[i]['index'])
         else:
             ind.append(0)
+            
+        if "id" in shot_data[i]:
+            eid.append(shot_data[i]['id'])
+        else:
+            eid.append(0)
     
         if "period" in shot_data[i]:
             per.append(shot_data[i]['period'])
@@ -466,6 +472,7 @@ def get_shots(data):
     
     shots = pd.DataFrame()
     shots['index'] = ind
+    shots['event_id'] = eid
     shots['period'] = per
     shots['minute'] = m
     shots['second'] = s
@@ -509,6 +516,7 @@ def get_pass(data):
     
     i = 0
     ind = []
+    eid = []
     per = []
     m = []
     s = []
@@ -538,6 +546,11 @@ def get_pass(data):
             ind.append(pass_data[i]['index'])
         else:
             ind.append(0)
+            
+        if "id" in pass_data[i]:
+            eid.append(pass_data[i]['id'])
+        else:
+            eid.append(0)
     
         if "period" in pass_data[i]:
             per.append(pass_data[i]['period'])
@@ -650,6 +663,7 @@ def get_pass(data):
     
     passes = pd.DataFrame()
     passes['index'] = ind
+    passes['event_id'] = eid
     passes['period'] = per
     passes['minute'] = m
     passes['second'] = s
