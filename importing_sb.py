@@ -504,6 +504,7 @@ def get_shots(data):
 ### Getting Pass Data ###
 def get_pass(data):
     data = data
+    shots = get_shots(data)
     import pandas as pd
     
     i = 0
@@ -536,6 +537,7 @@ def get_pass(data):
     swi = []
     sa = []
     ga = []
+    xA = []
     bp = []
     pty = []
     out = []
@@ -633,13 +635,23 @@ def get_pass(data):
         
         if "shot_assist" in pass_data[i]['pass']:
             sa.append(pass_data[i]['pass']['shot_assist'])
+            ga.append(None)
+            sa_id = pass_data[i]['pass']['assisted_shot_id']
+            xA.append(shots[shots['event_id'] == sa_id]['sb_xg'].values[0])
+        elif "goal_assist" in pass_data[i]['pass']:
+            ga.append(pass_data[i]['pass']['goal_assist'])
+            sa.append(None)
+            ga_id = pass_data[i]['pass']['assisted_shot_id']
+            xA.append(shots[shots['event_id'] == ga_id]['sb_xg'].values[0])
         else:
             sa.append(None)
-            
-        if "goal_assist" in pass_data[i]['pass']:
-            ga.append(pass_data[i]['pass']['goal_assist'])
-        else:
             ga.append(None)
+            xA.append(None)
+            
+#         if "goal_assist" in pass_data[i]['pass']:
+#             ga.append(pass_data[i]['pass']['goal_assist'])
+#         else:
+#             ga.append(None)
             
         if "body_part" in pass_data[i]['pass']:
             bp.append(pass_data[i]['pass']['body_part']['name'])
@@ -683,6 +695,7 @@ def get_pass(data):
     passes['switch'] = swi
     passes['shot_assist'] = sa
     passes['goal_assist'] = ga
+    passes['xA'] = xA
     passes['body_part'] = bp
     passes['pass_type'] = pty
     passes['outcome'] = out
@@ -694,6 +707,7 @@ def get_pass(data):
 def get_carry(data):
     data = data
     import pandas as pd
+    import numpy as np
     
     i = 0
     carry_data = []
@@ -819,10 +833,161 @@ def get_carry(data):
     carries['under_pressure'] = psr
     carries['end_x'] = end_x
     carries['end_y'] = end_y
+    carries['carry_dist'] = np.sqrt((np.array(end_x) - np.array(x)) ** 2 + (np.array(end_y) - np.array(y)) **2)
     carries['related_events'] = rev
         
     return carries
 
+
+def get_carry_prog(data, find_success=False, player=None, team=None):
+    import numpy as np
+    import pandas as pd
+    
+    carries = get_carry(data)
+    
+    xg = 120
+    yg = 40
+    
+    d = np.sqrt((120 - carries['x']) ** 2 + (40 - carries['y']) ** 2)
+    de = np.sqrt((120 - carries['end_x']) ** 2 + (40 - carries['end_y']) ** 2)
+    prog = ((d - de) * 0.914 >= 5.0).values
+    
+    car_prog = carries[prog&(carries['end_x'] >= 60)]
+    
+    if player != None:
+        car = car_prog[car_prog['player'] == player]
+    elif team != None:
+        car = car_prog[car_prog['team'] == team]
+    else:
+        car = car_prog
+        
+    if find_success == True:
+        event_df = clean_event_data(data)
+        passes = get_pass(data)
+        shots = get_shots(data)
+        
+        df_index = []
+        car_outcome = []
+        pass_outcome = []
+        shot_outcome = []
+        drib_outcome = []
+        xG = []
+        xA = []
+        for index, row in car.iterrows():
+            #print('index = ',index)
+            for j in row['related_events']:
+                event = event_df[event_df['event_id'] == j]
+                if event['m_index'].values > row['index']:
+                    if event['type'].values == 'Dribble':
+                        df_index.append(index)
+                        if event['outcome'].values == 'Complete':
+                            car_outcome.append('Successful')
+                            drib_outcome.append('Complete')
+                        else:
+                            car_outcome.append('Unsuccessful')
+                            drib_outcome.append('Incomplete')
+                        pass_outcome.append(None)
+                        shot_outcome.append(None)
+                        xG.append(None)
+                        xA.append(None)
+                        break
+
+                    elif event['type'].values == 'Pass':
+                        df_index.append(index)
+                        if event['outcome'].values == 'Complete':
+                            car_outcome.append('Successful')
+                            pass_event = passes[passes['event_id'] == event['event_id'].values[0]]
+                            if pass_event['shot_assist'].any() == True:
+                                pass_outcome.append('Shot Assist')
+                                xA.append(pass_event['xA'].values[0])
+                            elif pass_event['goal_assist'].any() == True:
+                                pass_outcome.append('Goal Assist')
+                                xA.append(pass_event['xA'].values[0])
+                            else:
+                                pass_outcome.append('Complete')
+                                xA.append(None)
+                        else:
+                            car_outcome.append('Unsuccessful')
+                            pass_outcome.append('Incomplete')
+                            xA.append(None)
+                        shot_outcome.append(None)
+                        drib_outcome.append(None)
+                        xG.append(None)
+                        break
+
+                    elif event['type'].values == 'Shot':
+                        car_outcome.append('Successful')
+                        df_index.append(index)
+                        shot_event = shots[shots['event_id'] == event['event_id'].values[0]]
+                        shot_outcome.append(shot_event['outcome'].values[0])
+                        xG.append(shot_event['sb_xg'].values[0])
+                        pass_outcome.append(None)
+                        drib_outcome.append(None)
+                        xA.append(None)
+                        break
+
+                    elif event['type'].values == 'Dispossessed':
+                        car_outcome.append('Unsuccessful')
+                        df_index.append(index)
+                        shot_outcome.append(None)
+                        pass_outcome.append(None)
+                        drib_outcome.append(None)
+                        xG.append(None)
+                        xA.append(None)
+
+                    elif event['type'].values == 'Foul Won':
+                        #if event['team'].values == 'Barcelona':
+                        if event['pos_team'].values == event['team'].values:
+                            car_outcome.append('Successful')
+                            df_index.append(index)
+                            shot_outcome.append(None)
+                            pass_outcome.append(None)
+                            drib_outcome.append(None)
+                            xG.append(None)
+                            xA.append(None)
+
+                    elif event['type'].values == 'Foul Committed':
+                        #if event['player'].values == player:
+                        if event['pos_team'].values == event['team'].values:
+                            car_outcome.append('Unsuccessful')
+                            df_index.append(index)
+                            shot_outcome.append(None)
+                            pass_outcome.append(None)
+                            drib_outcome.append(None)
+                            xG.append(None)
+                            xA.append(None)
+
+                    elif event['type'].values == 'Miscontrol':
+                        car_outcome.append('Unsuccessful')
+                        df_index.append(index)
+                        shot_outcome.append(None)
+                        pass_outcome.append(None)
+                        drib_outcome.append(None)
+                        xG.append(None)
+                        xA.append(None)
+
+                    else:
+                        pass
+                        #car_outcome.append(event['type'].values)
+
+        carry_outcome = pd.DataFrame()
+        carry_outcome['index'] = df_index
+        carry_outcome['outcome'] = car_outcome
+        carry_outcome['pass_outcome'] = pass_outcome
+        carry_outcome['shot_outcome'] = shot_outcome
+        carry_outcome['dribble_outcome'] = drib_outcome
+        carry_outcome['xG'] = xG
+        carry_outcome['xA'] = xA
+
+        carry_outcome.set_index('index',inplace=True)
+        del carry_outcome.index.name
+
+        # Add carry_outcome columns and rearrange the column order
+        car = pd.concat([car,carry_outcome], axis=1)
+        car = car[[c for c in car if c not in ['related_events']] + ['related_events']]
+    
+    return car
+    
 
 ### Pitch drawing function ###
 def draw_pitch(pitch_col, line_col, orientation,view):
