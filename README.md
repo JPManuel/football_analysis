@@ -1,6 +1,6 @@
 # statsbomb_data
 
-A collection of work in progress looking at the freely available Statsbomb open-data.
+A collection of work in progress looking at the freely available Statsbomb open-data (https://github.com/statsbomb/open-data).
 
 ## importing_sb.py
 
@@ -21,6 +21,8 @@ A notebook detailing the process of creating an xG model (using all the La Liga 
 
 A notebook that looks at simple stats and metrics across Messi's career. Includes shot numbers, conversion rates, types, etc. 
 Passes into final third and box and types (through ball, cross, switch).
+Progressive carries: Success, ending event, contribution to overall attacking contribution.
+How Messi has been used: Starting position.
 
 ## pass_sonar.ipynb
 
