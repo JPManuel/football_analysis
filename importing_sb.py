@@ -534,6 +534,7 @@ def get_pass(data):
     end_x =[]
     end_y = []
     crs = []
+    cut = []
     swi = []
     sa = []
     ga = []
@@ -628,6 +629,11 @@ def get_pass(data):
         else:
             crs.append(False)
             
+        if "cut-back" in pass_data[i]['pass']:
+            cut.append(pass_data[i]['pass']['cut-back'])
+        else:
+            cut.append(False)
+            
         if "switch" in pass_data[i]['pass']:
             swi.append(pass_data[i]['pass']['switch'])
         else:
@@ -692,6 +698,7 @@ def get_pass(data):
     passes['end_x'] = end_x
     passes['end_y'] = end_y
     passes['cross'] = crs
+    passes['cutback'] = crs
     passes['switch'] = swi
     passes['shot_assist'] = sa
     passes['goal_assist'] = ga
@@ -873,6 +880,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
         drib_outcome = []
         xG = []
         xA = []
+        outcome_id = []
         for index, row in car.iterrows():
             #print('index = ',index)
             for j in row['related_events']:
@@ -880,6 +888,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
                 if event['m_index'].values > row['index']:
                     if event['type'].values == 'Dribble':
                         df_index.append(index)
+                        outcome_id.append(event['event_id'].values[0])
                         if event['outcome'].values == 'Complete':
                             car_outcome.append('Successful')
                             drib_outcome.append('Complete')
@@ -894,6 +903,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
 
                     elif event['type'].values == 'Pass':
                         df_index.append(index)
+                        outcome_id.append(event['event_id'].values[0])
                         if event['outcome'].values == 'Complete':
                             car_outcome.append('Successful')
                             pass_event = passes[passes['event_id'] == event['event_id'].values[0]]
@@ -918,6 +928,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
                     elif event['type'].values == 'Shot':
                         car_outcome.append('Successful')
                         df_index.append(index)
+                        outcome_id.append(event['event_id'].values[0])
                         shot_event = shots[shots['event_id'] == event['event_id'].values[0]]
                         shot_outcome.append(shot_event['outcome'].values[0])
                         xG.append(shot_event['sb_xg'].values[0])
@@ -929,6 +940,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
                     elif event['type'].values == 'Dispossessed':
                         car_outcome.append('Unsuccessful')
                         df_index.append(index)
+                        outcome_id.append(event['event_id'].values[0])
                         shot_outcome.append(None)
                         pass_outcome.append(None)
                         drib_outcome.append(None)
@@ -940,6 +952,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
                         if event['pos_team'].values == event['team'].values:
                             car_outcome.append('Successful')
                             df_index.append(index)
+                            outcome_id.append(event['event_id'].values[0])
                             shot_outcome.append(None)
                             pass_outcome.append(None)
                             drib_outcome.append(None)
@@ -951,6 +964,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
                         if event['pos_team'].values == event['team'].values:
                             car_outcome.append('Unsuccessful')
                             df_index.append(index)
+                            outcome_id.append(event['event_id'].values[0])
                             shot_outcome.append(None)
                             pass_outcome.append(None)
                             drib_outcome.append(None)
@@ -960,6 +974,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
                     elif event['type'].values == 'Miscontrol':
                         car_outcome.append('Unsuccessful')
                         df_index.append(index)
+                        outcome_id.append(event['event_id'].values[0])
                         shot_outcome.append(None)
                         pass_outcome.append(None)
                         drib_outcome.append(None)
@@ -978,6 +993,7 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
         carry_outcome['dribble_outcome'] = drib_outcome
         carry_outcome['xG'] = xG
         carry_outcome['xA'] = xA
+        carry_outcome['outcome_id'] = outcome_id
 
         carry_outcome.set_index('index',inplace=True)
         del carry_outcome.index.name
@@ -1837,6 +1853,106 @@ def pass_map_player(data,player,region,pitch_col='w',line_col='k'):
     for i in range(len(xga)):
         ax.arrow(xga[i],yga[i],xega[i]-xga[i],yega[i]-yga[i],color='xkcd:crimson',**arrow_params)
 
+
+    plt.show()
+    
+    return fig, ax
+
+
+
+##### Plots for carries #####
+
+def carry_map_player(data,player,date=None,pitch_col='w',line_col='k'):
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import matplotlib
+    
+    data = data
+    player = player
+    pitch_col = pitch_col
+    line_col = line_col
+    
+    carries = get_carry_prog(data,find_success=True,player=player)
+    team = carries['team'].unique()[0]
+    
+    car_s = carries[carries['outcome'] == 'Successful']
+    car_u = carries[carries['outcome'] == 'Unsuccessful']
+    car_shot = carries[(carries['shot_outcome'] != 'Goal')&(carries['shot_outcome'].notnull())]
+    car_goal = carries[(carries['shot_outcome'] == 'Goal')]
+    car_pass = car_s[(car_s['pass_outcome'].notnull())]
+    car_sa = car_s[(car_s['pass_outcome'] == 'Shot Assist')]
+    car_ga = car_s[(car_s['pass_outcome'] == 'Goal Assist')]
+    car_drib = car_s[(car_s['dribble_outcome'].notnull())]
+
+    xA_tot = car_s[car_s['xA'].notna()].xA.sum()
+    xG_tot = car_s[car_s['xG'].notna()].xG.sum()
+    
+    fig, ax = draw_pitch('w','k','v','h')
+
+    xs = car_s['x'].values
+    ys = car_s['y'].values
+    xse = car_s['end_x'].values
+    yse = car_s['end_y'].values
+
+    xsh = car_shot['x'].values
+    ysh = car_shot['y'].values
+    xshe = car_shot['end_x'].values
+    yshe = car_shot['end_y'].values
+
+    xg = car_goal['x'].values
+    yg = car_goal['y'].values
+    xge = car_goal['end_x'].values
+    yge = car_goal['end_y'].values
+
+    xsa = car_sa['x'].values
+    ysa = car_sa['y'].values
+    xsae = car_sa['end_x'].values
+    ysae = car_sa['end_y'].values
+
+    xga = car_ga['x'].values
+    yga = car_ga['y'].values
+    xgae = car_ga['end_x'].values
+    ygae = car_ga['end_y'].values
+
+    xd = car_drib['x'].values
+    yd = car_drib['y'].values
+    xde = car_drib['end_x'].values
+    yde = car_drib['end_y'].values
+
+    zo=100
+    ax.plot([ys,yse],[xs,xse],'0.85',alpha=0.5,zorder=zo)
+    ax.scatter(yse,xse,s=100,facecolor='w',edgecolor='0.85',zorder=zo+1)
+    ax.plot([ysh,yshe],[xsh,xshe],'xkcd:green',alpha=1,zorder=zo+2)
+    ax.scatter(yshe,xshe,s=100,facecolor='w',edgecolor='xkcd:green',zorder=zo+3)
+    ax.plot([yg,yge],[xg,xge],'xkcd:green',alpha=0.5,zorder=zo+2)
+    ax.scatter(yge,xge,s=100,facecolor='xkcd:green',edgecolor='xkcd:green',zorder=zo+3)
+    ax.plot([ysa,ysae],[xsa,xsae],'xkcd:blue',alpha=1,zorder=zo+2)
+    ax.scatter(ysae,xsae,s=100,facecolor='w',edgecolor='xkcd:blue',zorder=zo+3)
+    ax.plot([yga,ygae],[xga,xgae],'xkcd:blue',alpha=1,zorder=zo+2)
+    ax.scatter(ygae,xgae,s=100,facecolor='xkcd:blue',edgecolor='xkcd:blue',zorder=zo+3)
+
+    ax.scatter(-100,-100,s=100,facecolor='w',edgecolor='xkcd:green',zorder=zo+3,label='Shot')
+    ax.scatter(-100,-100,s=100,facecolor='xkcd:green',edgecolor='xkcd:green',zorder=zo+3,label='Goal')
+    ax.scatter(-100,-100,s=100,facecolor='w',edgecolor='xkcd:blue',zorder=zo+3,label='Key Pass')
+    ax.scatter(-100,-100,s=100,facecolor='xkcd:blue',edgecolor='xkcd:blue',zorder=zo+3,label='Assist')
+
+    ax.legend(loc=4,bbox_to_anchor=(1.0,1.07),ncol=2,frameon=False,fontsize=12,framealpha=0,facecolor=None)
+    
+    ## Adding Annotations
+    ax.text(0.0,1.18,player,transform=ax.transAxes,ha='left',va='bottom',fontsize=18,fontweight='semibold',zorder=zo)
+    ax.text(0.0,1.15,team,transform=ax.transAxes,ha='left',va='top',fontsize=16,zorder=zo)
+    ax.text(1.0,1.18,'Progressive Carries',transform=ax.transAxes,ha='right',va='bottom',fontsize=18,fontweight='semibold',zorder=zo)
+    
+    # Add date
+    if date != None:
+        ax.text(0.0, 1.10, 'La Liga - ' + str(date), ha='left', va='top', transform=ax.transAxes, fontsize=16)
+    else:
+        ax.text(0.0, 1.10, 'La Liga', ha='left', va='top', transform=ax.transAxes, fontsize=16)
+
+    ax.text(0.82,1.025,'xG: {:.2f}'.format(xG_tot),transform=ax.transAxes,fontsize=16,
+            bbox=dict(boxstyle='round,pad=0.4',facecolor='xkcd:green',edgecolor='k',alpha=0.4),ha='right',zorder=zo)
+    ax.text(0.98,1.025,'xA: {:.2f}'.format(xA_tot),transform=ax.transAxes,fontsize=16,
+            bbox=dict(boxstyle='round,pad=0.4',facecolor='xkcd:blue',edgecolor='k',alpha=0.4),ha='right',zorder=zo)
 
     plt.show()
     
