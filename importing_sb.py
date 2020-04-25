@@ -1,5 +1,8 @@
 
 def open_data(file):
+    '''
+    Loads a json file.
+    '''
     file = file
     import json
     data_file = json.load(open(file))
@@ -7,6 +10,9 @@ def open_data(file):
     
     
 def clean_match_data(data):
+    '''
+    Sorts match data into a DataFrame containing Home Team, Away Team, Home Score and Away Score.
+    '''
     data = data
     import pandas as pd
     i = 0
@@ -38,6 +44,9 @@ def clean_match_data(data):
     
     
 def clean_event_data(data):
+    '''
+    Basic event data sorting function. Provides DataFrame containing Index, id, period, minute, second, type, possession, possession team, play pattern, team, player, x, y, duration, under pressure. Then some additional details depending on the event type; Pass: recipient, height, outcome; Shot: outcome; Dribble: outcome; end x, end y.
+    '''
     data = data
     import pandas as pd
     
@@ -226,6 +235,9 @@ def clean_event_data(data):
 
 
 def get_player_info(data,player):
+    '''
+    Returns a Series containing some Player Info: position, number, start, sub_off, sub_on, min_start, sec_start, min_end, sec_end, sec_played.
+    '''
     data = data
     player = player
     import pandas as pd
@@ -299,8 +311,11 @@ def get_player_info(data,player):
         
     return player_info
 
-
+### Get Shots ###
 def get_shots(data):
+    '''
+    Get the shots from data. Returns a DataFrame with index, id, period, minute, second, type, possession team, play pattern, team, player, x, y, duration, under pressure, end x, end y, end z, follows dribble, first time, freeze frame, open goal, sb xg, deflected, technique, body part, shot type, outcome.
+    '''
     data = data
     import pandas as pd
     
@@ -503,8 +518,12 @@ def get_shots(data):
 
 ### Getting Pass Data ###
 def get_pass(data):
+    '''
+    Get the passes from data. Returns a DataFrame with index, id, period, minute, second, type, possession team, play pattern, team, player, x, y, duration, under pressure, recipient, end x, end y, cross, cutback, switch, shot assist, goal assist, xA, body part, pass type, outcome, technique, progressive.
+    '''
     data = data
     shots = get_shots(data)
+    import numpy as np
     import pandas as pd
     
     i = 0
@@ -708,10 +727,25 @@ def get_pass(data):
     passes['outcome'] = out
     passes['technique'] = tec
     
+    # Finding progressive passes
+    xg = 120
+    yg = 40
+    d_gain = np.sqrt((xg - passes["x"])**2 + (yg - passes["y"])**2) - np.sqrt((xg - passes["end_x"])**2 + (yg - passes["end_y"])**2)
+    own_half = passes["x"] < 60
+    # Progressive if pass greater than 30m from within own half
+    own_half_prog = (d_gain[own_half] * 0.914) >= 30.0
+    # Progressive if pass greater than 10m from within opposition half
+    opp_half_prog = (d_gain[~own_half] * 0.914) >= 10.0
+    
+    passes['progressive'] = pd.concat([own_half_prog,opp_half_prog])
+    
     return passes
 
 ### Get Carries ###
 def get_carry(data):
+    '''
+    Get carries from data. Returns DataFrame with index, id, period, minute, second, type, possession team, play pattern, team, player, x, y, duration, under pressure, end x, end y, carry dist, related events
+    '''
     data = data
     import pandas as pd
     import numpy as np
@@ -845,8 +879,11 @@ def get_carry(data):
         
     return carries
 
-
+### Get Progressive Carries ###
 def get_carry_prog(data, find_success=False, player=None, team=None):
+    '''
+    Get progressive carries with the option to find if they are successful (which adds a lot of computation time).
+    '''
     import numpy as np
     import pandas as pd
     
@@ -996,7 +1033,8 @@ def get_carry_prog(data, find_success=False, player=None, team=None):
         carry_outcome['outcome_id'] = outcome_id
 
         carry_outcome.set_index('index',inplace=True)
-        del carry_outcome.index.name
+        #del carry_outcome.index.name
+        carry_outcome.rename_axis(None, inplace=True)
 
         # Add carry_outcome columns and rearrange the column order
         car = pd.concat([car,carry_outcome], axis=1)
