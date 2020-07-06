@@ -547,11 +547,14 @@ def get_pass(data):
     pl = []
     x = []
     y = []
+    end_x =[]
+    end_y = []
+    length = []
+    ang = []
+    hei = []
     dur = []
     psr = []
     rec = []
-    end_x =[]
-    end_y = []
     crs = []
     cut = []
     swi = []
@@ -621,27 +624,42 @@ def get_pass(data):
             x.append(None)
             y.append(None)
             
-        if "duration" in pass_data[i]:
-            dur.append(pass_data[i]['duration'])
-        else:
-            dur.append(None)
-            
-        if "under_pressure" in pass_data[i]:
-            psr.append(pass_data[i]['under_pressure'])
-        else:
-            psr.append(None)
-            
-        if "recipient" in pass_data[i]['pass']:
-            rec.append(pass_data[i]['pass']['recipient']['name'])
-        else:
-            rec.append(None)
-            
         if "end_location" in pass_data[i]['pass']:
             end_x.append(pass_data[i]['pass']['end_location'][0])
             end_y.append(pass_data[i]['pass']['end_location'][1])
         else:
             end_x.append(None)
             end_y.append(None)
+            
+        if "length" in pass_data[i]['pass']:
+            length.append(pass_data[i]['pass']['length'])
+        else:
+            length.append(None)
+            
+        if "angle" in pass_data[i]['pass']:
+            ang.append(pass_data[i]['pass']['angle'])
+        else:
+            ang.append(None)
+            
+        if "height" in pass_data[i]['pass']:
+            hei.append(pass_data[i]['pass']['height']['name'])
+        else:
+            hei.append(None)
+            
+        if "duration" in pass_data[i]:
+            dur.append(pass_data[i]['duration'])
+        else:
+            dur.append(None)
+            
+        if "recipient" in pass_data[i]['pass']:
+            rec.append(pass_data[i]['pass']['recipient']['name'])
+        else:
+            rec.append(None)
+            
+        if "under_pressure" in pass_data[i]:
+            psr.append(pass_data[i]['under_pressure'])
+        else:
+            psr.append(False)
         
         if "cross" in pass_data[i]['pass']:
             crs.append(pass_data[i]['pass']['cross'])
@@ -711,11 +729,14 @@ def get_pass(data):
     passes['player'] = pl
     passes['x'] = x
     passes['y'] = y
-    passes['duration'] = dur
-    passes['under_pressure'] = psr
-    passes['recipient'] = rec
     passes['end_x'] = end_x
     passes['end_y'] = end_y
+    passes['length'] = length
+    passes['angle'] = ang
+    passes['height'] = hei
+    passes['duration'] = dur
+    passes['recipient'] = rec
+    passes['under_pressure'] = psr
     passes['cross'] = crs
     passes['cutback'] = crs
     passes['switch'] = swi
