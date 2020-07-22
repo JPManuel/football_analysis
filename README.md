@@ -41,7 +41,7 @@ Using k-means clustering to identify different types of passes. Firstly, this is
 
 ## pass_sonar.ipynb
 
-Incomplete code for creating team passing sonars (or radars), displaying pass direction tendencies and typical pass length.
+Notebook exploring and creating passing sonars (or radars), displaying pass direction tendencies and typical pass length. Firstly look at the sonars of starting 11 players in their formation in a single match. Then focus on a single player and look at their passing sonar in each zone of the pitch for a given match.
 
 ## poisson_prediction.ipynb
 
