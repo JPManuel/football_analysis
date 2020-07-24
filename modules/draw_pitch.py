@@ -3,14 +3,14 @@
 """
 Created on Wed Apr 15 14:51:59 2020
 
-Function for draw a football pitch.
+Function to draw a football pitch.
 
 Distances are in yards as it was orignally built based off the Statsbomb data.
 
 @author: Jonathan Manuel
 """
 
-def draw_pitch(pitch_col, line_col, orientation, view, figax=None, alpha=1):
+def draw_pitch(pitch_col, line_col, orientation, view, figax=None, fig_width='default', alpha=1):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Arc
     
@@ -24,14 +24,26 @@ def draw_pitch(pitch_col, line_col, orientation, view, figax=None, alpha=1):
         
         if view.lower().startswith("h"):
             if figax is None:
-                fig,ax = plt.subplots(figsize=(9,12))
+                if fig_width is 'default':
+                    fig_width = 9
+                    fig_height = (4/3)*fig_width
+                else:
+                    fig_width = fig_width
+                    fig_height = (4/3)*fig_width
+                fig,ax = plt.subplots(figsize=(fig_width,fig_height))
                 plt.xlim(59,121)
                 plt.ylim(-1,81)
             else:
                 fig,ax = figax
         else:
             if figax is None:
-                fig,ax = plt.subplots(figsize=(12,8))
+                if fig_width is 'default':
+                    fig_width = 12
+                    fig_height = (2/3)*fig_width
+                else:
+                    fig_width = fig_width
+                    fig_height = (2/3)*fig_width
+                fig,ax = plt.subplots(figsize=(fig_width,fig_height))
                 plt.xlim(-1,121)
                 plt.ylim(-1,81)
             else:
@@ -97,14 +109,26 @@ def draw_pitch(pitch_col, line_col, orientation, view, figax=None, alpha=1):
         
         if view.lower().startswith("h"):
             if figax is None:
-                fig,ax = plt.subplots(figsize=(12,9))
+                if fig_width is 'default':
+                    fig_width = 12
+                    fig_height = (3/4)*fig_width
+                else:
+                    fig_width = fig_width
+                    fig_height = (3/4)*fig_width
+                fig,ax = plt.subplots(figsize=(fig_width,fig_height))
                 plt.ylim(59,121)
                 plt.xlim(-1,81)
             else:
                 fig,ax = figax
         else:
             if figax is None:
-                fig,ax = plt.subplots(figsize=(8,12))
+                if fig_width is 'default':
+                    fig_width = 8
+                    fig_height = (3/2)*fig_width
+                else:
+                    fig_width = fig_width
+                    fig_height = (3/2)*fig_width
+                fig,ax = plt.subplots(figsize=(fig_width,fig_height))
                 plt.ylim(-1,121)
                 plt.xlim(-1,81)
             else:
