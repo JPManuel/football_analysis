@@ -64,9 +64,108 @@ def plot_inset(width, axis_main, data, x, y, ymax=0.3, alpha=0.6, c_map='viridis
     return ax_sub
 
 
+def pass_sonar(df, bin_num=12, vmax=None, facecol='w', bar_len_var='fraction', bar_cmap_var='length', bar_cmap='Blues', bar_width='default', theta_zero_loc='N', radial_ticks='default', grid_col='0.3', ygrid=True, xgrid=False, figsize=(5,5), alpha=0.8):
+    """
+    A generic function for plotting a single pass sonar for a provided DataFrame.
+    
+    Parameters
+    ----------
+    df : A DataFrame which contains the columns 'angle', 'length' and 'outcome'. The 'outcome' column should have values '1' corresponding to complete passes and '0' otherwise.
+    bin_num : The number of angular bins to split the passes into. The default is 12.
+    vmax : The maxmimum value for the bar colourmap. The default is None, in which case the maximum of the bar_cmap_var column is used.
+    facecol : Set the facecolour of the axis. The default is 'w'.
+    bar_len_var : The variable off which the length of the bars is based. Can take the values 'fraction', 'length' or 'success'. The default is 'fraction'.
+    bar_cmap_var : The variable off which the colour of the bars is based. Can take the values 'fraction', 'length' or 'success'. The default is 'length'.
+    bar_cmap : The colourmap used for the bars. The default is 'Blues'.
+    bar_width : The bar width. The default is "default, which is 2*pi/bin_num.
+    theta_zero_loc : The zero-location for the theta. The default is 'N'.
+    radial_ticks : What ticks to show on the radar. The default is "default", which shows three equally spaced ticks up to, and including, the maximum.
+    grid_col : Colour of the grid. The default is '0.3'.
+    ygrid : Whether to display the y-axis grid. The default is True.
+    xgrid : Whether to display the x-axis grid. The default is False.
+    figsize : Size of the figure. The default is (5,5).
+    alpha : Alpha for the whole figure. The default is 0.8.
+
+    Returns
+    -------
+    fig : Returns the figure.
+    ax : Returns the axis for further use.
+
+    """
+    
+    
+    angle_bins = np.linspace(-np.pi, np.pi+0.001, bin_num)
+    df['angle_mid'] = pd.cut(df['angle'], angle_bins, include_lowest=True).apply(lambda x: x.mid)
+    
+    df_grouped = df.groupby('angle_mid',as_index=False)['length'].mean().dropna()
+    #df_grouped['fraction'] = (df.groupby('angle_mid').size()/len(df)).values
+    df_grouped = df_grouped.join((df.groupby('angle_mid').size()/len(df)).rename('fraction'), on='angle_mid', how='left')
+    df_grouped['success'] = (df.groupby('angle_mid')['outcome'].sum()/df.groupby('angle_mid').size()).dropna().values
+    
+    # Plotting
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111, projection='polar')
+    
+    theta = df_grouped['angle_mid']
+    if bar_len_var is "fraction":
+        radii = df_grouped['fraction']
+        if radial_ticks is "default":
+            radial_ticks = np.linspace(0,df_grouped['fraction'].max(),4)[1:]
+    elif bar_len_var is "length":
+        radii = df_grouped['length']
+        if radial_ticks is "default":
+            radial_ticks = np.linspace(0,df_grouped['length'].max(),4)[1:]
+    elif bar_len_var is "success":
+        radii = df_grouped['success']
+        if radial_ticks is "default":
+            radial_ticks = np.linspace(0,df_grouped['success'].max(),4)[1:]
+    else:
+        raise ValueError("Only 'fraction', 'length' and 'success' are valid values for bar_len_var.")
+        
+    if bar_cmap_var is "fraction":
+        col = df_grouped['fraction']
+        if vmax is None:
+            vmax = df_grouped['fraction'].max()
+    elif bar_cmap_var is "length":
+        col = df_grouped['length']
+        if vmax is None:
+            vmax = df_grouped['length'].max()
+    elif bar_cmap_var is "success":
+        col = df_grouped['success']
+        if vmax is None:
+            vmax = df_grouped['success'].max()
+    else:
+        raise ValueError("Only 'fraction', 'length' and 'success' are valid values for bar_cmap_var.")
+    
+    if bar_width is "default":
+        bar_width = (2*np.pi)/bin_num
+    
+    bars = ax.bar(theta, radii, width=bar_width)
+
+    cmap = plt.cm.get_cmap(bar_cmap)
+    norm = plt.Normalize(vmin=0,vmax=vmax)
+    for c, bar in zip(col, bars):
+        bar.set_facecolor(cmap(norm(c)))
+        bar.set_alpha(alpha)
+
+    ax.set_theta_direction('clockwise')
+    ax.set_theta_zero_location(theta_zero_loc)
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_yticks(radial_ticks)
+    ax.tick_params(which='major',grid_color=grid_col,grid_alpha=alpha)
+    ax.yaxis.grid(ygrid)
+    ax.xaxis.grid(xgrid)
+    ax.spines['polar'].set_visible(False)
+    ax.set_facecolor(facecol)
+    ax.patch.set_alpha(alpha)
+
+    return fig, ax
+
+
 def pass_sonar_zones(data_dir, match_id, name, sonar='player', zone_cmap='Reds', bar_cmap='YlGnBu', zone_vmax='count', legend=True, badge=False):
     """
-    Create a figure showing the pass sonars/radars from 18 distinct pitch zones.
+    Create a figure showing the pass sonars/radars from 18 distinct pitch zones using the StatsBomb open data.
 
     Parameters
     ----------
